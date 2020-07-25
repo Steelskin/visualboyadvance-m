@@ -27,6 +27,7 @@
 #include "wxvbam.h"
 #include "wxutil.h"
 #include "wayland.h"
+#include "background-input.h"
 
 #ifdef __WXMSW__
 #include <windows.h>
@@ -328,7 +329,7 @@ void GameArea::LoadGame(const wxString& name)
     emulating = true;
     was_paused = true;
     MainFrame* mf = wxGetApp().frame;
-    mf->StopJoyPollTimer();
+    //mf->StopJoyPollTimer();
     mf->SetJoystick();
     mf->cmd_enable &= ~(CMDEN_GB | CMDEN_GBA);
     mf->cmd_enable |= ONLOAD_CMDEN;
@@ -557,15 +558,17 @@ void GameArea::UnloadGame(bool destruct)
     emusys = NULL;
     soundShutdown();
 
+    disableKeyboardBackgroundInput();
+
     if (destruct)
         return;
 
     // in destructor, panel should be auto-deleted by wx since all panels
     // are derived from a window attached as child to GameArea
-    if (panel)
+    if (panel) {
         panel->Destroy();
-
-    panel = NULL;
+        panel = nullptr;
+    }
 
     // close any game-related viewer windows
     // in destructor, viewer windows are in process of being deleted anyway
@@ -579,7 +582,7 @@ void GameArea::UnloadGame(bool destruct)
     mf->enable_menus();
     mf->SetJoystick();
     mf->ResetCheatSearch();
-    mf->StartJoyPollTimer();
+    //mf->StartJoyPollTimer();
 
     if (rewind_mem)
         num_rewind_states = 0;
@@ -702,10 +705,10 @@ void GameArea::AddBorder()
     wxGetApp().frame->Fit();
     GetSizer()->Detach(panel->GetWindow());
 
-    if (panel)
+    if (panel) {
         panel->Destroy();
-
-    panel = NULL;
+        panel = nullptr;
+    }
 }
 
 void GameArea::DelBorder()
@@ -721,10 +724,10 @@ void GameArea::DelBorder()
     wxGetApp().frame->Fit();
     GetSizer()->Detach(panel->GetWindow());
 
-    if (panel)
+    if (panel) {
         panel->Destroy();
-
-    panel = NULL;
+        panel = nullptr;
+    }
 }
 
 void GameArea::AdjustMinSize()
@@ -802,7 +805,7 @@ void GameArea::ShowFullScreen(bool full)
     // delete panel to be recreated immediately after resize
     if (panel) {
         panel->Destroy();
-        panel = NULL;
+        panel = nullptr;
     }
 
     // Windows does not restore old window size/pos
@@ -1066,6 +1069,10 @@ void GameArea::OnIdle(wxIdleEvent& event)
 
         w->SetBackgroundStyle(wxBG_STYLE_CUSTOM);
         w->SetSize(wxSize(basic_width, basic_height));
+
+        // Allow input while on background
+        if (allowKeyboardBackgroundInput)
+            enableKeyboardBackgroundInput(w);
 
         if (maxScale)
             w->SetMaxSize(wxSize(basic_width * maxScale,
@@ -2060,6 +2067,8 @@ DrawingPanelBase::~DrawingPanelBase()
 
         delete[] threads;
     }
+
+    disableKeyboardBackgroundInput();
 }
 
 BasicDrawingPanel::BasicDrawingPanel(wxWindow* parent, int _width, int _height)
