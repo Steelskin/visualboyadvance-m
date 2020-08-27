@@ -294,62 +294,62 @@ msgstr ""
 msgid "Confirm"
 msgstr ""
 
-#: guiinit.cpp:2734
+#: guiinit.cpp:2727
 msgid "Main icon not found"
 msgstr ""
 
-#: guiinit.cpp:2744
+#: guiinit.cpp:2737
 msgid "Browse"
 msgstr ""
 
-#: guiinit.cpp:2758
+#: guiinit.cpp:2751
 msgid "Main display panel not found"
 msgstr ""
 
-#: guiinit.cpp:2907
+#: guiinit.cpp:2900
 #, c-format
 msgid "Duplicate menu accelerator: %s for %s and %s; keeping first"
 msgstr ""
 
-#: guiinit.cpp:2921
+#: guiinit.cpp:2914
 #, c-format
 msgid "Menu accelerator %s for %s overrides default for %s ; keeping menu"
 msgstr ""
 
-#: guiinit.cpp:3059
+#: guiinit.cpp:3052
 #, c-format
 msgid "Invalid menu item %s; removing"
 msgstr ""
 
-#: guiinit.cpp:3267
+#: guiinit.cpp:3260
 msgid "Code"
 msgstr ""
 
-#: guiinit.cpp:3276
+#: guiinit.cpp:3269
 msgid "Description"
 msgstr ""
 
-#: guiinit.cpp:3350 xrc/CheatAdd.xrc:31
+#: guiinit.cpp:3343 xrc/CheatAdd.xrc:31
 msgid "Address"
 msgstr ""
 
-#: guiinit.cpp:3351
+#: guiinit.cpp:3344
 msgid "Old Value"
 msgstr ""
 
-#: guiinit.cpp:3352
+#: guiinit.cpp:3345
 msgid "New Value"
 msgstr ""
 
-#: guiinit.cpp:3873
+#: guiinit.cpp:3866
 msgid "Menu commands"
 msgstr ""
 
-#: guiinit.cpp:3896
+#: guiinit.cpp:3889
 msgid "Other commands"
 msgstr ""
 
-#: guiinit.cpp:4007
+#: guiinit.cpp:4000
 msgid "JoyBus host invalid; disabling"
 msgstr ""
 
@@ -1156,24 +1156,9 @@ msgstr ""
 msgid "CONTROL"
 msgstr ""
 
-#: widgets/sdljoy.cpp:130
+#: widgets/sdljoy.cpp:120 widgets/sdljoy.cpp:138
 #, c-format
 msgid "Connected game controller %d"
-msgstr ""
-
-#: widgets/sdljoy.cpp:144
-#, c-format
-msgid "Disconnected game controller %d"
-msgstr ""
-
-#: widgets/sdljoy.cpp:230
-#, c-format
-msgid "Connected joystick %d"
-msgstr ""
-
-#: widgets/sdljoy.cpp:247
-#, c-format
-msgid "Disconnected joystick %d"
 msgstr ""
 
 #: xaudio2.cpp:35
