@@ -40,7 +40,6 @@ struct wxSDLJoyDev {
 
 struct wxSDLJoyState {
     wxSDLJoyDev dev;
-    int player_index;
     std::unordered_map<uint8_t, int16_t> axis{};
     std::unordered_map<uint8_t, uint8_t> button{};
 };
@@ -78,12 +77,9 @@ protected:
     void DisconnectController(SDL_JoystickID instance_id);
     void CreateAndSendEvent(wxEvtHandler* handler, int player_index, unsigned short ctrl_type, unsigned short ctrl_idx, short ctrl_val, short prev_val);
 
-    int FirstAvailablePlayerIndex();
-
     const uint8_t POLL_TIME_MS = 10;
 
 private:
-    std::vector<SDL_JoystickID> player_index;
     std::unordered_map<SDL_JoystickID, wxSDLJoyState> joystate;
     std::unordered_map<SDL_JoystickID, wxSDLJoyState> gcstate;
     wxEvtHandler* evthandler;
