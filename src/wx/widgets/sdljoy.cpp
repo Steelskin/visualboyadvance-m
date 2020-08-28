@@ -17,6 +17,7 @@ DEFINE_EVENT_TYPE(wxEVT_SDLJOY)
 wxSDLJoy::wxSDLJoy()
     : wxTimer()
     , evthandler(nullptr)
+    , player_index(NUM_JOYSTICKS, -1)
 {
     // Start up joystick if not already started
     // FIXME: check for errors
@@ -41,7 +42,7 @@ static int16_t axisval(int16_t x)
     return 0;
 }
 
-void wxSDLJoy::CreateAndSendEvent(wxEvtHandler* handler, SDL_JoystickID joy, unsigned short ctrl_type, unsigned short ctrl_idx, short ctrl_val, short prev_val)
+void wxSDLJoy::CreateAndSendEvent(wxEvtHandler* handler, int player_index, unsigned short ctrl_type, unsigned short ctrl_idx, short ctrl_val, short prev_val)
 {
     if (!handler) {
         GameArea *panel = wxGetApp().frame->GetPanel();
@@ -52,7 +53,7 @@ void wxSDLJoy::CreateAndSendEvent(wxEvtHandler* handler, SDL_JoystickID joy, uns
     }
 
     wxSDLJoyEvent *ev = new wxSDLJoyEvent(wxEVT_SDLJOY);
-    ev->joy           = joy;
+    ev->player_index  = player_index;
     ev->ctrl_type     = ctrl_type;
     ev->ctrl_idx      = ctrl_idx;
     ev->ctrl_val      = ctrl_val;
@@ -81,7 +82,7 @@ void wxSDLJoy::Poll()
                     auto prev_val = gcstate[instance_id].button[but];
 
                     if (val != prev_val) {
-                        CreateAndSendEvent(handler, instance_id, WXSDLJOY_BUTTON, but, val, prev_val);
+                        CreateAndSendEvent(handler, SDL_GameControllerGetPlayerIndex(gcstate[instance_id].dev), WXSDLJOY_BUTTON, but, val, prev_val);
 
                         gcstate[instance_id].button[but] = val;
 
@@ -106,7 +107,7 @@ void wxSDLJoy::Poll()
                     auto prev_val = gcstate[instance_id].axis[axis];
 
                     if (val != prev_val) {
-                        CreateAndSendEvent(handler, instance_id, WXSDLJOY_AXIS, axis, val, prev_val);
+                        CreateAndSendEvent(handler, SDL_GameControllerGetPlayerIndex(gcstate[instance_id].dev), WXSDLJOY_AXIS, axis, val, prev_val);
 
                         gcstate[instance_id].axis[axis] = val;
 
@@ -160,6 +161,10 @@ void wxSDLJoy::Poll()
                 SDL_JoystickID instance_id = e.cdevice.which;
                 std::cout << "CONTROLLERDEVICEREMOVED Joy IID = " << instance_id << std::endl;
 
+                if (contains(gcstate, instance_id) && gcstate[instance_id].player_index != -1) {
+                    player_index[gcstate[instance_id].player_index] = -1;
+                }
+
                 gcstate.erase(instance_id);
 
                 got_event = true;
@@ -174,15 +179,13 @@ void wxSDLJoy::Poll()
             {
                 SDL_JoystickID instance_id = e.jbutton.which;
 
-                SDL_Joystick* dev = SDL_JoystickFromInstanceID(instance_id);
-
                 if (contains(joystate, instance_id)) {
                     auto but      = e.jbutton.button;
                     auto val      = e.jbutton.state;
                     auto prev_val = joystate[instance_id].button[but];
 
                     if (val != prev_val) {
-                        CreateAndSendEvent(handler, instance_id, WXSDLJOY_BUTTON, but, val, prev_val);
+                        CreateAndSendEvent(handler, SDL_JoystickGetPlayerIndex(joystate[instance_id].dev), WXSDLJOY_BUTTON, but, val, prev_val);
 
                         joystate[instance_id].button[but] = val;
 
@@ -198,15 +201,13 @@ void wxSDLJoy::Poll()
             {
                 SDL_JoystickID instance_id = e.jaxis.which;
 
-                SDL_Joystick* js = SDL_JoystickFromInstanceID(instance_id);
-
                 if (contains(joystate, instance_id)) {
                     auto axis     = e.jaxis.axis;
                     auto val      = axisval(e.jaxis.value);
                     auto prev_val = joystate[instance_id].axis[axis];
 
                     if (val != prev_val) {
-                        CreateAndSendEvent(handler, instance_id, WXSDLJOY_AXIS, axis, val, prev_val);
+                        CreateAndSendEvent(handler, SDL_JoystickGetPlayerIndex(joystate[instance_id].dev), WXSDLJOY_AXIS, axis, val, prev_val);
 
                         joystate[instance_id].axis[axis] = val;
 
@@ -235,6 +236,10 @@ void wxSDLJoy::Poll()
                 //InstanceID
                 SDL_JoystickID instance_id = e.jdevice.which;
 
+                if (contains(joystate, instance_id) && joystate[instance_id].player_index != -1) {
+                    player_index[gcstate[instance_id].player_index] = -1;
+                }
+
                 joystate.erase(instance_id);
 
                 got_event = true;
@@ -261,7 +266,7 @@ void wxSDLJoy::Poll()
                 auto state = SDL_GameControllerGetButton(gc.second.dev, static_cast<SDL_GameControllerButton>(but));
 
                 if (last_state != state) {
-                    CreateAndSendEvent(handler, gc.first, WXSDLJOY_BUTTON, but, state, last_state);
+                    CreateAndSendEvent(handler, SDL_GameControllerGetPlayerIndex(gc.second.dev), WXSDLJOY_BUTTON, but, state, last_state);
 
                     gc.second.button[but] = state;
 
@@ -274,8 +279,7 @@ void wxSDLJoy::Poll()
                 auto prev_val = gc.second.axis[axis];
 
                 if (val != prev_val) {
-                    CreateAndSendEvent(handler, gc.first, WXSDLJOY_AXIS, axis, val, prev_val);
-
+                    CreateAndSendEvent(handler, SDL_GameControllerGetPlayerIndex(gc.second.dev), WXSDLJOY_AXIS, axis, val, prev_val);
                     gc.second.axis[axis] = val;
 
                     wxLogDebug("POLLED SDL_CONTROLLERAXISMOTION: joy:%d axis:%d val:%d prev_val:%d", gc.first, axis, val, prev_val);
@@ -288,7 +292,7 @@ void wxSDLJoy::Poll()
                 auto state      = SDL_JoystickGetButton(joy.second.dev, but);
 
                 if (last_state != state) {
-                    CreateAndSendEvent(handler, joy.first, WXSDLJOY_BUTTON, but, state, last_state);
+                    CreateAndSendEvent(handler, SDL_JoystickGetPlayerIndex(joy.second.dev), WXSDLJOY_BUTTON, but, state, last_state);
 
                     gc.second.button[but] = state;
 
@@ -301,7 +305,7 @@ void wxSDLJoy::Poll()
                 auto prev_val = joy.second.axis[axis];
 
                 if (val != prev_val) {
-                    CreateAndSendEvent(handler, joy.first, WXSDLJOY_AXIS, axis, val, prev_val);
+                    CreateAndSendEvent(handler, SDL_JoystickGetPlayerIndex(joy.second.dev), WXSDLJOY_AXIS, axis, val, prev_val);
 
                     joy.second.axis[axis] = val;
 
@@ -312,16 +316,43 @@ void wxSDLJoy::Poll()
     }
 }
 
+int wxSDLJoy::FirstAvailablePlayerIndex() {
+    for (int i = 0; i < player_index.size(); i++) {
+        if (player_index[i] == -1) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 void wxSDLJoy::ConnectController(int joystick_index)
 {
     if (SDL_GameController* dev = SDL_GameControllerOpen(joystick_index)) {
         SDL_Joystick* dev_js = SDL_GameControllerGetJoystick(dev);
         SDL_JoystickID instance_id = SDL_JoystickInstanceID(dev_js);
 
+        if (SDL_GameControllerGetPlayerIndex(dev) == -1) {
+            int new_player_index = FirstAvailablePlayerIndex();
+            SDL_GameControllerSetPlayerIndex(dev, new_player_index);
+            player_index[new_player_index] = instance_id;
+
+            gcstate[instance_id].player_index = new_player_index;
+        }
+
         gcstate[instance_id].dev = dev;
     }
     else if (SDL_Joystick* dev = SDL_JoystickOpen(joystick_index)) {
         SDL_JoystickID instance_id = SDL_JoystickInstanceID(dev);
+
+        if (SDL_JoystickGetPlayerIndex(dev) == -1) {
+            int new_player_index = FirstAvailablePlayerIndex();
+            SDL_JoystickSetPlayerIndex(dev, new_player_index);
+            player_index[new_player_index] = instance_id;
+            
+            joystate[instance_id].player_index = new_player_index;
+        }
+        
         joystate[instance_id].dev = dev;
     }
     else {
@@ -334,11 +365,19 @@ void wxSDLJoy::DisconnectController(SDL_JoystickID instance_id)
 {
     if (auto& dev = gcstate[instance_id].dev) {
         std::cout << "GameControllerClose " << (SDL_GameController*)dev << std::endl;
+        int old_player_index = SDL_GameControllerGetPlayerIndex(dev);
+        if (old_player_index != -1) {
+            player_index[old_player_index] = -1;
+        }
         SDL_GameControllerClose(dev);
         gcstate.erase(instance_id);
     }
     if (auto& dev = joystate[instance_id].dev) {
         std::cout << "JoystickClose " << (SDL_Joystick*)dev << std::endl;
+        int old_player_index = SDL_JoystickGetPlayerIndex(dev);
+        if (old_player_index != -1) {
+            player_index[old_player_index] = -1;
+        }
         SDL_JoystickClose(dev);
         joystate.erase(instance_id);
     }
