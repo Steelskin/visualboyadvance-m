@@ -923,46 +923,6 @@ wxString MainFrame::GetGamePath(wxString path)
     return game_path;
 }
 
-void MainFrame::SetJoystick()
-{
-    /* Remove all attached joysticks to avoid errors while
-     * destroying and creating the GameArea `panel`. */
-    joy.Remove();
-
-    set_global_accels();
-
-    if (!emulating)
-        return;
-
-    for (int i = 0; i < 4; i++)
-        for (int j = 0; j < NUM_KEYS; j++) {
-            wxJoyKeyBinding_v b = gopts.joykey_bindings[i][j];
-            for (size_t k = 0; k < b.size(); k++) {
-                int jn = b[k].joy;
-                if (jn) {
-                    joy.Add(jn - 1);
-                }
-            }
-        }
-}
-
-void MainFrame::StopJoyPollTimer()
-{
-    if (jpoll && jpoll->IsRunning())
-        jpoll->Stop();
-}
-
-void MainFrame::StartJoyPollTimer()
-{
-    if (jpoll && !jpoll->IsRunning())
-        jpoll->Start();
-}
-
-bool MainFrame::IsJoyPollTimerRunning()
-{
-    return jpoll->IsRunning();
-}
-
 wxEvtHandler* MainFrame::GetJoyEventHandler()
 {
     auto focused_window = wxWindow::FindFocus();

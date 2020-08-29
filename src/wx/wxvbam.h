@@ -222,8 +222,6 @@ public:
     void GetMenuOptionBool(const char* menuName, bool& field);
     void SetMenuOption(const char* menuName, int value);
 
-    void SetJoystick();
-
     int FilterEvent(wxEvent& event);
 
     GameArea* GetPanel()
@@ -322,11 +320,6 @@ public:
     }
 
     void PollJoysticks() { joy.Poll(); }
-
-    // Poll joysticks with timer.
-    void StartJoyPollTimer();
-    void StopJoyPollTimer();
-    bool IsJoyPollTimerRunning();
 
     wxEvtHandler* GetJoyEventHandler();
 

@@ -329,7 +329,7 @@ void GameArea::LoadGame(const wxString& name)
     emulating = true;
     was_paused = true;
     MainFrame* mf = wxGetApp().frame;
-    mf->SetJoystick();
+    mf->set_global_accels();
     mf->cmd_enable &= ~(CMDEN_GB | CMDEN_GBA);
     mf->cmd_enable |= ONLOAD_CMDEN;
     mf->cmd_enable |= loaded == IMAGE_GB ? CMDEN_GB : (CMDEN_GBA | CMDEN_NGDB_GBA);
@@ -579,7 +579,7 @@ void GameArea::UnloadGame(bool destruct)
     mf->cmd_enable &= UNLOAD_CMDEN_KEEP;
     mf->update_state_ts(true);
     mf->enable_menus();
-    mf->SetJoystick();
+    mf->set_global_accels();
     mf->ResetCheatSearch();
 
     if (rewind_mem)

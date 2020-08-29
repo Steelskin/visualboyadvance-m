@@ -4,8 +4,6 @@
 // This is my own SDL-based joystick handler, since wxJoystick is brain-dead.
 // It's geared towards keyboard emulation
 
-// To use, create a wxSDLJoy object Add() the joysticks you want to monitor.
-//
 //   The target window will receive EVT_SDLJOY events of type wxSDLJoyEvent.
 
 #include <cstddef>
@@ -20,21 +18,21 @@
 #include "../common/contains.h"
 
 struct wxSDLJoyDev {
-    private:
-        union {
-            SDL_GameController* dev_gc = nullptr;
-            SDL_Joystick*       dev_js;
-        };
-    public:
-        operator SDL_GameController*&();
-        SDL_GameController*& operator=(SDL_GameController* ptr);
+public:
+    operator SDL_GameController*&();
+    SDL_GameController*& operator=(SDL_GameController* ptr);
 
-        operator SDL_Joystick*&();
-        SDL_Joystick*& operator=(SDL_Joystick* ptr);
+    operator SDL_Joystick*&();
+    SDL_Joystick*& operator=(SDL_Joystick* ptr);
 
-        operator bool();
+    operator bool();
 
-        std::nullptr_t& operator=(std::nullptr_t&& null_ptr);
+    std::nullptr_t& operator=(std::nullptr_t&& null_ptr);
+private:
+    union {
+        SDL_GameController* dev_gc = nullptr;
+        SDL_Joystick*       dev_js;
+    };
 };
 
 struct wxSDLJoyState {
@@ -46,25 +44,11 @@ struct wxSDLJoyState {
 class wxSDLJoy : public wxTimer {
 public:
     wxSDLJoy();
-    // add another joystick to the list of polled sticks
-    // -1 == add all
-    // If joy > # of joysticks, it is ignored
-    // This will start polling if a valid joystick is selected
-    void Add(int8_t joy = -1);
-    // remove a joystick from the polled sticks
-    // -1 == remove all
-    // If joy > # of joysticks, it is ignored
-    // This will stop polling if all joysticks are disabled
-    void Remove(int8_t joy = -1);
-    // query if a stick is being polled
-    bool IsPolling(uint8_t joy) { return contains(joystate, joy); }
+    virtual ~wxSDLJoy();
 
     // true = currently rumbling, false = turn off rumbling
     void SetRumble(bool do_rumble);
-
     void Poll();
-
-    virtual ~wxSDLJoy();
 
 protected:
     // used to continue rumbling on a timer
@@ -76,10 +60,8 @@ protected:
     const uint8_t POLL_TIME_MS = 10;
 
 private:
-    std::unordered_map<uint8_t, wxSDLJoyState> joystate;
-    bool add_all = false, rumbling = false;
-
-    wxLongLong last_poll = wxGetUTCTimeMillis();
+    std::unordered_map<SDL_JoystickID, wxSDLJoyState> joystate_;
+    bool rumbling_ = false;
 };
 
 enum {
@@ -97,30 +79,14 @@ class wxSDLJoyEvent : public wxCommandEvent {
 public:
     // Default constructor
     wxSDLJoyEvent(wxEventType commandType = wxEVT_NULL)
-        : wxCommandEvent(commandType)
-    {
-    }
+        : wxCommandEvent(commandType) {}
+
     // accessors
-    unsigned short GetJoy()
-    {
-        return joy;
-    }
-    unsigned short GetControlType()
-    {
-        return ctrl_type;
-    }
-    unsigned short GetControlIndex()
-    {
-        return ctrl_idx;
-    }
-    short GetControlValue()
-    {
-        return ctrl_val;
-    }
-    short GetControlPrevValue()
-    {
-        return prev_val;
-    }
+    unsigned short GetJoy() { return joy; }
+    unsigned short GetControlType() { return ctrl_type; }
+    unsigned short GetControlIndex() { return ctrl_idx; }
+    short GetControlValue() { return ctrl_val; }
+    short GetControlPrevValue() { return prev_val; }
 
 protected:
     unsigned short joy;
