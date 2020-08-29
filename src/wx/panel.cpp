@@ -1229,7 +1229,7 @@ static void game_keys_pressed(int key, int mod, int joy, std::vector<game_key>* 
             wxJoyKeyBinding_v& b = gopts.joykey_bindings[player][key_num];
 
             for (size_t bind_num = 0; bind_num < b.size(); bind_num++)
-                if (b[bind_num].key == key && b[bind_num].mod == mod && b[bind_num].player_index == player_index)
+                if (b[bind_num].key == key && b[bind_num].mod == mod && b[bind_num].player_index == joy)
                     vec->push_back({player, key_num, (int)bind_num, b});
         }
 }
@@ -1265,12 +1265,8 @@ static bool process_key_press(bool down, int key, int mod, int player_index = -1
         if (keys_pressed[kpno].key == key && keys_pressed[kpno].mod == mod && keys_pressed[kpno].player_index == player_index)
             break;
 
-<<<<<<< HEAD
     std::vector<game_key> game_keys;
-    game_keys_pressed(key, mod, joy, &game_keys);
-=======
-    auto game_keys = game_keys_pressed(key, mod, player_index);
->>>>>>> Instead of using joystick index to process button events,
+    game_keys_pressed(key, mod, player_index, &game_keys);
 
     const bool is_game_key = game_keys.size();
 

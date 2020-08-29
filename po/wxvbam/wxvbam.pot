@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-08-27 19:38-0700\n"
+"POT-Creation-Date: 2020-08-28 18:03-0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -115,241 +115,249 @@ msgstr ""
 msgid "Bad configuration option or multiple ROM files given:\n"
 msgstr ""
 
-#: guiinit.cpp:77
+#: guiinit.cpp:81
 msgid "Start!"
 msgstr ""
 
-#: guiinit.cpp:96 xrc/NetLink.xrc:99
+#: guiinit.cpp:100
+#: xrc/NetLink.xrc:99
 msgid "Connect"
 msgstr ""
 
-#: guiinit.cpp:113
+#: guiinit.cpp:117
 msgid "You must enter a valid host name"
 msgstr ""
 
-#: guiinit.cpp:114
+#: guiinit.cpp:118
 msgid "Host name invalid"
 msgstr ""
 
-#: guiinit.cpp:132
+#: guiinit.cpp:136
 msgid "Waiting for clients..."
 msgstr ""
 
-#: guiinit.cpp:133
+#: guiinit.cpp:137
 #, c-format
 msgid "Server IP address is: %s\n"
 msgstr ""
 
-#: guiinit.cpp:135
+#: guiinit.cpp:139
 msgid "Waiting for connection..."
 msgstr ""
 
-#: guiinit.cpp:136
+#: guiinit.cpp:140
 #, c-format
 msgid "Connecting to %s\n"
 msgstr ""
 
-#: guiinit.cpp:169
+#: guiinit.cpp:173
 msgid ""
 "Error occurred.\n"
 "Please try again."
 msgstr ""
 
-#: guiinit.cpp:236 guiinit.cpp:289
+#: guiinit.cpp:240 guiinit.cpp:293
 msgid "Select cheat file"
 msgstr ""
 
-#: guiinit.cpp:237
+#: guiinit.cpp:241
 msgid "VBA cheat lists (*.clt)|*.clt|CHT cheat lists (*.cht)|*.cht"
 msgstr ""
 
-#: guiinit.cpp:256 panel.cpp:436
+#: guiinit.cpp:260 panel.cpp:437
 msgid "Loaded cheats"
 msgstr ""
 
-#: guiinit.cpp:290
+#: guiinit.cpp:294
 msgid "VBA cheat lists (*.clt)|*.clt"
 msgstr ""
 
-#: guiinit.cpp:308
+#: guiinit.cpp:312
 msgid "Saved cheats"
 msgstr ""
 
-#: guiinit.cpp:339 guiinit.cpp:358
+#: guiinit.cpp:343 guiinit.cpp:362
 msgid "Restore old values?"
 msgstr ""
 
-#: guiinit.cpp:340 guiinit.cpp:359
+#: guiinit.cpp:344 guiinit.cpp:363
 msgid "Removing cheats"
 msgstr ""
 
-#: guiinit.cpp:750 xrc/JoyPanel.xrc:364
+#: guiinit.cpp:754
+#: xrc/JoyPanel.xrc:364
 msgid "GameShark"
 msgstr ""
 
-#: guiinit.cpp:751 cmdevents.cpp:676
+#: guiinit.cpp:755 cmdevents.cpp:676
 msgid "GameGenie"
 msgstr ""
 
-#: guiinit.cpp:753
+#: guiinit.cpp:757
 msgid "Generic Code"
 msgstr ""
 
-#: guiinit.cpp:754
+#: guiinit.cpp:758
 msgid "GameShark Advance"
 msgstr ""
 
-#: guiinit.cpp:755
+#: guiinit.cpp:759
 msgid "CodeBreaker Advance"
 msgstr ""
 
-#: guiinit.cpp:756
+#: guiinit.cpp:760
 msgid "Flashcart CHT"
 msgstr ""
 
-#: guiinit.cpp:824 guiinit.cpp:1079
+#: guiinit.cpp:828 guiinit.cpp:1083
 msgid "Number cannot be empty"
 msgstr ""
 
-#: guiinit.cpp:862
+#: guiinit.cpp:866
 #, c-format
 msgid "Search produced %d results.  Please refine better"
 msgstr ""
 
-#: guiinit.cpp:874
+#: guiinit.cpp:878
 msgid "Search produced no results"
 msgstr ""
 
-#: guiinit.cpp:1037
+#: guiinit.cpp:1041
 msgid "8-bit "
 msgstr ""
 
-#: guiinit.cpp:1041
+#: guiinit.cpp:1045
 msgid "16-bit "
 msgstr ""
 
-#: guiinit.cpp:1045
+#: guiinit.cpp:1049
 msgid "32-bit "
 msgstr ""
 
-#: guiinit.cpp:1051
+#: guiinit.cpp:1055
 msgid "signed decimal"
 msgstr ""
 
-#: guiinit.cpp:1055
+#: guiinit.cpp:1059
 msgid "unsigned decimal"
 msgstr ""
 
-#: guiinit.cpp:1059
+#: guiinit.cpp:1063
 msgid "unsigned hexadecimal"
 msgstr ""
 
-#: guiinit.cpp:1537
+#: guiinit.cpp:1541
 #, c-format
 msgid "%d frames = %.2f ms"
 msgstr ""
 
-#: guiinit.cpp:1549
+#: guiinit.cpp:1553
 msgid "Default device"
 msgstr ""
 
-#: guiinit.cpp:1723
+#: guiinit.cpp:1727
 msgid "Desktop mode"
 msgstr ""
 
-#: guiinit.cpp:1730
+#: guiinit.cpp:1734
 #, c-format
 msgid "%d x %d - %dbpp @ %dHz"
 msgstr ""
 
-#: guiinit.cpp:1843 cmdevents.cpp:746 xrc/DisplayConfig.xrc:85
-#: xrc/DisplayConfig.xrc:135 xrc/DisplayConfig.xrc:221
-#: xrc/GameBoyAdvanceConfig.xrc:32 xrc/GameBoyAdvanceConfig.xrc:204
-#: xrc/SoundConfig.xrc:219 xrc/SoundConfig.xrc:309
+#: guiinit.cpp:1847 cmdevents.cpp:746
+#: xrc/DisplayConfig.xrc:85
+#: xrc/DisplayConfig.xrc:135
+#: xrc/DisplayConfig.xrc:221
+#: xrc/GameBoyAdvanceConfig.xrc:32
+#: xrc/GameBoyAdvanceConfig.xrc:204
+#: xrc/SoundConfig.xrc:219
+#: xrc/SoundConfig.xrc:309
 msgid "None"
 msgstr ""
 
-#: guiinit.cpp:1884
+#: guiinit.cpp:1888
 #, c-format
 msgid "No usable rpi plugins found in %s"
 msgstr ""
 
-#: guiinit.cpp:1904 xrc/DisplayConfig.xrc:107
+#: guiinit.cpp:1908
+#: xrc/DisplayConfig.xrc:107
 msgid "Plugin"
 msgstr ""
 
-#: guiinit.cpp:1932
+#: guiinit.cpp:1936
 msgid "Please select a plugin or a different filter"
 msgstr ""
 
-#: guiinit.cpp:1933
+#: guiinit.cpp:1937
 msgid "Plugin selection error"
 msgstr ""
 
-#: guiinit.cpp:2146
+#: guiinit.cpp:2150
 msgid "This will clear all user-defined accelerators.  Are you sure?"
 msgstr ""
 
-#: guiinit.cpp:2146
+#: guiinit.cpp:2150
 msgid "Confirm"
 msgstr ""
 
-#: guiinit.cpp:2727
+#: guiinit.cpp:2735
 msgid "Main icon not found"
 msgstr ""
 
-#: guiinit.cpp:2737
+#: guiinit.cpp:2745
 msgid "Browse"
 msgstr ""
 
-#: guiinit.cpp:2751
+#: guiinit.cpp:2759
 msgid "Main display panel not found"
 msgstr ""
 
-#: guiinit.cpp:2900
+#: guiinit.cpp:2924
 #, c-format
 msgid "Duplicate menu accelerator: %s for %s and %s; keeping first"
 msgstr ""
 
-#: guiinit.cpp:2914
+#: guiinit.cpp:2938
 #, c-format
 msgid "Menu accelerator %s for %s overrides default for %s ; keeping menu"
 msgstr ""
 
-#: guiinit.cpp:3052
+#: guiinit.cpp:3076
 #, c-format
 msgid "Invalid menu item %s; removing"
 msgstr ""
 
-#: guiinit.cpp:3260
+#: guiinit.cpp:3284
 msgid "Code"
 msgstr ""
 
-#: guiinit.cpp:3269
+#: guiinit.cpp:3293
 msgid "Description"
 msgstr ""
 
-#: guiinit.cpp:3343 xrc/CheatAdd.xrc:31
+#: guiinit.cpp:3367
+#: xrc/CheatAdd.xrc:31
 msgid "Address"
 msgstr ""
 
-#: guiinit.cpp:3344
+#: guiinit.cpp:3368
 msgid "Old Value"
 msgstr ""
 
-#: guiinit.cpp:3345
+#: guiinit.cpp:3369
 msgid "New Value"
 msgstr ""
 
-#: guiinit.cpp:3866
+#: guiinit.cpp:3890
 msgid "Menu commands"
 msgstr ""
 
-#: guiinit.cpp:3889
+#: guiinit.cpp:3913
 msgid "Other commands"
 msgstr ""
 
-#: guiinit.cpp:4000
+#: guiinit.cpp:4024
 msgid "JoyBus host invalid; disabling"
 msgstr ""
 
@@ -619,7 +627,7 @@ msgstr ""
 msgid "Confirm import"
 msgstr ""
 
-#: cmdevents.cpp:907 panel.cpp:379
+#: cmdevents.cpp:907 panel.cpp:380
 #, c-format
 msgid "Loaded battery %s"
 msgstr ""
@@ -702,7 +710,7 @@ msgstr ""
 msgid "Wrote battery %s"
 msgstr ""
 
-#: cmdevents.cpp:1100 panel.cpp:686
+#: cmdevents.cpp:1100 panel.cpp:689
 #, c-format
 msgid "Error writing battery %s"
 msgstr ""
@@ -746,84 +754,84 @@ msgstr ""
 msgid "Select file"
 msgstr ""
 
-#: cmdevents.cpp:1639 cmdevents.cpp:1732
+#: cmdevents.cpp:1669 cmdevents.cpp:1762
 msgid "Select state file"
 msgstr ""
 
-#: cmdevents.cpp:1640 cmdevents.cpp:1733
+#: cmdevents.cpp:1670 cmdevents.cpp:1763
 msgid "VisualBoyAdvance saved game files|*.sgm"
 msgstr ""
 
-#: cmdevents.cpp:1763 cmdevents.cpp:1773 cmdevents.cpp:1784
+#: cmdevents.cpp:1793 cmdevents.cpp:1803 cmdevents.cpp:1814
 #, c-format
 msgid "Current state slot #%d"
 msgstr ""
 
-#: cmdevents.cpp:2053
+#: cmdevents.cpp:2083
 msgid "Sound enabled"
 msgstr ""
 
-#: cmdevents.cpp:2053
+#: cmdevents.cpp:2083
 msgid "Sound disabled"
 msgstr ""
 
-#: cmdevents.cpp:2066 cmdevents.cpp:2080
+#: cmdevents.cpp:2096 cmdevents.cpp:2110
 #, c-format
 msgid "Volume: %d%%"
 msgstr ""
 
-#: cmdevents.cpp:2155
+#: cmdevents.cpp:2185
 msgid "Set to 0 for pseudo tty"
 msgstr ""
 
-#: cmdevents.cpp:2157
+#: cmdevents.cpp:2187
 msgid "Port to wait for connection:"
 msgstr ""
 
-#: cmdevents.cpp:2158
+#: cmdevents.cpp:2188
 msgid "GDB Connection"
 msgstr ""
 
-#: cmdevents.cpp:2211
+#: cmdevents.cpp:2241
 #, c-format
 msgid "Waiting for connection at %s"
 msgstr ""
 
-#: cmdevents.cpp:2218
+#: cmdevents.cpp:2248
 #, c-format
 msgid "Waiting for connection on port %d"
 msgstr ""
 
-#: cmdevents.cpp:2221
+#: cmdevents.cpp:2251
 msgid "Waiting for GDB..."
 msgstr ""
 
-#: cmdevents.cpp:2636
+#: cmdevents.cpp:2666
 #, c-format
 msgid "Using pixel filter #%d"
 msgstr ""
 
-#: cmdevents.cpp:2651
+#: cmdevents.cpp:2681
 #, c-format
 msgid "Using interframe blending #%d"
 msgstr ""
 
-#: cmdevents.cpp:2690 panel.cpp:192 panel.cpp:295
+#: cmdevents.cpp:2720 panel.cpp:193 panel.cpp:296
 msgid "Could not initialize the sound driver!"
 msgstr ""
 
-#: cmdevents.cpp:2794
+#: cmdevents.cpp:2824
 msgid "Nintendo GameBoy (+Color+Advance) emulator."
 msgstr ""
 
-#: cmdevents.cpp:2795
+#: cmdevents.cpp:2825
 msgid ""
 "Copyright (C) 1999-2003 Forgotten\n"
 "Copyright (C) 2004-2006 VBA development team\n"
 "Copyright (C) 2007-2017 VBA-M development team"
 msgstr ""
 
-#: cmdevents.cpp:2796
+#: cmdevents.cpp:2826
 msgid ""
 "This program is free software: you can redistribute it and/or modify\n"
 "it under the terms of the GNU General Public License as published by\n"
@@ -839,35 +847,35 @@ msgid ""
 "along with this program.  If not, see http://www.gnu.org/licenses ."
 msgstr ""
 
-#: cmdevents.cpp:3101
+#: cmdevents.cpp:3131
 msgid "LAN link is already active.  Disable link mode to disconnect."
 msgstr ""
 
-#: cmdevents.cpp:3107
+#: cmdevents.cpp:3137
 msgid "Network is not supported in local mode."
 msgstr ""
 
-#: opts.cpp:561 opts.cpp:864
+#: opts.cpp:563 opts.cpp:866
 #, c-format
 msgid "Invalid value %s for option %s; valid values are %s%s%s"
 msgstr ""
 
-#: opts.cpp:578 opts.cpp:876
+#: opts.cpp:580 opts.cpp:878
 #, c-format
 msgid "Invalid value %d for option %s; valid values are %d - %d"
 msgstr ""
 
-#: opts.cpp:585 opts.cpp:594 opts.cpp:884 opts.cpp:892
+#: opts.cpp:587 opts.cpp:596 opts.cpp:886 opts.cpp:894
 #, c-format
 msgid "Invalid value %f for option %s; valid values are %f - %f"
 msgstr ""
 
-#: opts.cpp:654 opts.cpp:675 opts.cpp:960 opts.cpp:986
+#: opts.cpp:656 opts.cpp:677 opts.cpp:962 opts.cpp:988
 #, c-format
 msgid "Invalid key binding %s for %s"
 msgstr ""
 
-#: opts.cpp:847
+#: opts.cpp:849
 #, c-format
 msgid "Invalid flag option %s - %s ignored"
 msgstr ""
@@ -912,7 +920,8 @@ msgstr ""
 msgid "%d%%"
 msgstr ""
 
-#: sys.cpp:768 xrc/GBPrinter.xrc:65
+#: sys.cpp:768
+#: xrc/GBPrinter.xrc:65
 msgid "&Discard"
 msgstr ""
 
@@ -947,155 +956,155 @@ msgstr ""
 msgid "Error setting up server socket (%d)"
 msgstr ""
 
-#: panel.cpp:106
+#: panel.cpp:107
 #, c-format
 msgid "%s is not a valid ROM file"
 msgstr ""
 
-#: panel.cpp:107 panel.cpp:168 panel.cpp:233
+#: panel.cpp:108 panel.cpp:169 panel.cpp:234
 msgid "Problem loading file"
 msgstr ""
 
-#: panel.cpp:167
+#: panel.cpp:168
 #, c-format
 msgid "Unable to load Game Boy ROM %s"
 msgstr ""
 
-#: panel.cpp:209 panel.cpp:309
+#: panel.cpp:210 panel.cpp:310
 #, c-format
 msgid "Could not load BIOS %s"
 msgstr ""
 
-#: panel.cpp:232
+#: panel.cpp:233
 #, c-format
 msgid "Unable to load Game Boy Advance ROM %s"
 msgstr ""
 
-#: panel.cpp:468
+#: panel.cpp:469
 msgid " player "
 msgstr ""
 
-#: panel.cpp:634
+#: panel.cpp:637
 #, c-format
 msgid "Loaded state %s"
 msgstr ""
 
-#: panel.cpp:634
+#: panel.cpp:637
 #, c-format
 msgid "Error loading state %s"
 msgstr ""
 
-#: panel.cpp:658
+#: panel.cpp:661
 #, c-format
 msgid "Saved state %s"
 msgstr ""
 
-#: panel.cpp:658
+#: panel.cpp:661
 #, c-format
 msgid "Error saving state %s"
 msgstr ""
 
-#: panel.cpp:862
+#: panel.cpp:865
 #, c-format
 msgid "Fullscreen mode %dx%d-%d@%d not supported; looking for another"
 msgstr ""
 
-#: panel.cpp:900
+#: panel.cpp:903
 #, c-format
 msgid "Fullscreen mode %dx%d-%d@%d not supported"
 msgstr ""
 
-#: panel.cpp:905
+#: panel.cpp:908
 #, c-format
 msgid "Valid mode: %dx%d-%d@%d"
 msgstr ""
 
-#: panel.cpp:913
+#: panel.cpp:916
 #, c-format
 msgid "Chose mode %dx%d-%d@%d"
 msgstr ""
 
-#: panel.cpp:917
+#: panel.cpp:920
 #, c-format
 msgid "Failed to change mode to %dx%d-%d@%d"
 msgstr ""
 
-#: panel.cpp:1001
+#: panel.cpp:1004
 msgid "Not a valid GBA cartridge"
 msgstr ""
 
-#: panel.cpp:1161
+#: panel.cpp:1168
 msgid "No memory for rewinding"
 msgstr ""
 
-#: panel.cpp:1171
+#: panel.cpp:1178
 msgid "Error writing rewind state"
 msgstr ""
 
-#: panel.cpp:2272
+#: panel.cpp:2276
 msgid "Failed to set glXSwapIntervalEXT"
 msgstr ""
 
-#: panel.cpp:2281
+#: panel.cpp:2285
 msgid "Failed to set glXSwapIntervalSGI"
 msgstr ""
 
-#: panel.cpp:2290
+#: panel.cpp:2294
 msgid "Failed to set glXSwapIntervalMESA"
 msgstr ""
 
-#: panel.cpp:2296
+#: panel.cpp:2300
 msgid "No support for wglGetExtensionsStringEXT"
 msgstr ""
 
-#: panel.cpp:2299
+#: panel.cpp:2303
 msgid "No support for WGL_EXT_swap_control"
 msgstr ""
 
-#: panel.cpp:2308
+#: panel.cpp:2312
 msgid "Failed to set wglSwapIntervalEXT"
 msgstr ""
 
-#: panel.cpp:2314
+#: panel.cpp:2318
 msgid "No VSYNC available on this platform"
 msgstr ""
 
-#: panel.cpp:2410
+#: panel.cpp:2414
 msgid "memory allocation error"
 msgstr ""
 
-#: panel.cpp:2413
+#: panel.cpp:2417
 msgid "error initializing codec"
 msgstr ""
 
-#: panel.cpp:2416
+#: panel.cpp:2420
 msgid "error writing to output file"
 msgstr ""
 
-#: panel.cpp:2419
+#: panel.cpp:2423
 msgid "can't guess output format from file name"
 msgstr ""
 
-#: panel.cpp:2424
+#: panel.cpp:2428
 msgid "programming error; aborting!"
 msgstr ""
 
-#: panel.cpp:2436 panel.cpp:2465
+#: panel.cpp:2440 panel.cpp:2469
 #, c-format
 msgid "Unable to begin recording to %s (%s)"
 msgstr ""
 
-#: panel.cpp:2493
+#: panel.cpp:2497
 #, c-format
 msgid "Error in audio/video recording (%s); aborting"
 msgstr ""
 
-#: panel.cpp:2499
+#: panel.cpp:2503
 #, c-format
 msgid "Error in audio recording (%s); aborting"
 msgstr ""
 
-#: panel.cpp:2509
+#: panel.cpp:2513
 #, c-format
 msgid "Error in video recording (%s); aborting"
 msgstr ""
@@ -1156,9 +1165,14 @@ msgstr ""
 msgid "CONTROL"
 msgstr ""
 
-#: widgets/sdljoy.cpp:120 widgets/sdljoy.cpp:138
+#: widgets/sdljoy.cpp:127 widgets/sdljoy.cpp:145
 #, c-format
 msgid "Connected game controller %d"
+msgstr ""
+
+#: widgets/sdljoy.cpp:162
+#, c-format
+msgid "Disconnected game controller %d"
 msgstr ""
 
 #: xaudio2.cpp:35
