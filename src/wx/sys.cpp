@@ -240,7 +240,7 @@ void systemStopGamePlayback()
     mf->enable_menus();
 }
 
-// updates the joystick data (done in background using wxSDLJoy)
+// updates the joystick data (done in background using wxJoyPoller)
 bool systemReadJoypads()
 {
     return true;

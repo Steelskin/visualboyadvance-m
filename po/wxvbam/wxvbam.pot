@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-05 11:34+0000\n"
+"POT-Creation-Date: 2021-04-25 18:11-0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -294,62 +294,62 @@ msgstr ""
 msgid "Confirm"
 msgstr ""
 
-#: guiinit.cpp:2740
+#: guiinit.cpp:2741
 msgid "Main icon not found"
 msgstr ""
 
-#: guiinit.cpp:2750
+#: guiinit.cpp:2751
 msgid "Browse"
 msgstr ""
 
-#: guiinit.cpp:2764
+#: guiinit.cpp:2765
 msgid "Main display panel not found"
 msgstr ""
 
-#: guiinit.cpp:2929
+#: guiinit.cpp:2930
 #, c-format
 msgid "Duplicate menu accelerator: %s for %s and %s; keeping first"
 msgstr ""
 
-#: guiinit.cpp:2943
+#: guiinit.cpp:2944
 #, c-format
 msgid "Menu accelerator %s for %s overrides default for %s ; keeping menu"
 msgstr ""
 
-#: guiinit.cpp:3081
+#: guiinit.cpp:3082
 #, c-format
 msgid "Invalid menu item %s; removing"
 msgstr ""
 
-#: guiinit.cpp:3289
+#: guiinit.cpp:3290
 msgid "Code"
 msgstr ""
 
-#: guiinit.cpp:3298
+#: guiinit.cpp:3299
 msgid "Description"
 msgstr ""
 
-#: guiinit.cpp:3372 xrc/CheatAdd.xrc:31
+#: guiinit.cpp:3373 xrc/CheatAdd.xrc:31
 msgid "Address"
 msgstr ""
 
-#: guiinit.cpp:3373
+#: guiinit.cpp:3374
 msgid "Old Value"
 msgstr ""
 
-#: guiinit.cpp:3374
+#: guiinit.cpp:3375
 msgid "New Value"
 msgstr ""
 
-#: guiinit.cpp:3895
+#: guiinit.cpp:3896
 msgid "Menu commands"
 msgstr ""
 
-#: guiinit.cpp:3918
+#: guiinit.cpp:3919
 msgid "Other commands"
 msgstr ""
 
-#: guiinit.cpp:4029
+#: guiinit.cpp:4030
 msgid "JoyBus host invalid; disabling"
 msgstr ""
 
@@ -847,27 +847,27 @@ msgstr ""
 msgid "Network is not supported in local mode."
 msgstr ""
 
-#: opts.cpp:563 opts.cpp:866
+#: opts.cpp:565 opts.cpp:868
 #, c-format
 msgid "Invalid value %s for option %s; valid values are %s%s%s"
 msgstr ""
 
-#: opts.cpp:580 opts.cpp:878
+#: opts.cpp:582 opts.cpp:880
 #, c-format
 msgid "Invalid value %d for option %s; valid values are %d - %d"
 msgstr ""
 
-#: opts.cpp:587 opts.cpp:596 opts.cpp:886 opts.cpp:894
+#: opts.cpp:589 opts.cpp:598 opts.cpp:888 opts.cpp:896
 #, c-format
 msgid "Invalid value %f for option %s; valid values are %f - %f"
 msgstr ""
 
-#: opts.cpp:656 opts.cpp:677 opts.cpp:962 opts.cpp:988
+#: opts.cpp:658 opts.cpp:679 opts.cpp:964 opts.cpp:990
 #, c-format
 msgid "Invalid key binding %s for %s"
 msgstr ""
 
-#: opts.cpp:849
+#: opts.cpp:851
 #, c-format
 msgid "Invalid flag option %s - %s ignored"
 msgstr ""
@@ -1156,14 +1156,14 @@ msgstr ""
 msgid "CONTROL"
 msgstr ""
 
-#: widgets/sdljoy.cpp:137
+#: widgets/sdljoy.cpp:177
 #, c-format
-msgid "Connected joystick %d: %s"
+msgid "Connected %s: %s"
 msgstr ""
 
-#: widgets/sdljoy.cpp:152
+#: widgets/sdljoy.cpp:192
 #, c-format
-msgid "Disconnected joystick %d"
+msgid "Disconnected %s"
 msgstr ""
 
 #: xaudio2.cpp:35
