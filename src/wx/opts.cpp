@@ -1,31 +1,22 @@
 #include "wx/opts.h"
 
-#include <algorithm>
 #include <limits>
 #include <memory>
 #include <unordered_set>
 
 #include <wx/defs.h>
-#include <wx/filehistory.h>
 #include <wx/log.h>
 #include <wx/xrc/xmlres.h>
 
 #include "wx/config/bindings.h"
 #include "wx/config/command.h"
+#include "wx/config/emulated-gamepad.h"
+#include "wx/config/handler-id.h"
 #include "wx/config/option-observer.h"
 #include "wx/config/option-proxy.h"
 #include "wx/config/option.h"
 #include "wx/config/user-input.h"
 #include "wx/wxvbam.h"
-
-/*
-       disableSfx(F) -> cpuDisableSfx
-       priority(2) -> threadPriority
-       saveMoreCPU(F) -> Sm60FPS
-
-     SDL:
-      -p/--profile=hz
-*/
 
 namespace {
 
@@ -109,10 +100,7 @@ uint32_t LoadUnsignedOption(wxConfigBase* cfg,
 opts_t gopts;
 
 // This constructor only works with globally allocated gopts.
-opts_t::opts_t()
-{
-    recent = new wxFileHistory(10);
-}
+opts_t::opts_t() {}
 
 // FIXME: simulate MakeInstanceFilename(vbam.ini) using subkeys (Slave%d/*)
 void load_opts(bool first_time_launch) {
@@ -130,14 +118,14 @@ void load_opts(bool first_time_launch) {
     // enure there are no unknown options present
     // note that items cannot be deleted until after loop or loop will fail
     wxArrayString item_del, grp_del;
-    long grp_idx;
-    wxString s;
+    long group_index;
+    wxString group;
     bool cont;
 
-    for (cont = cfg->GetFirstEntry(s, grp_idx); cont;
-         cont = cfg->GetNextEntry(s, grp_idx)) {
+    for (cont = cfg->GetFirstEntry(group, group_index); cont;
+         cont = cfg->GetNextEntry(group, group_index)) {
         //wxLogWarning(_("Invalid option %s present; removing if possible"), s.c_str());
-        item_del.push_back(s);
+        item_del.push_back(group);
     }
 
     // Read the IniVersion now since the Option initialization code will reset
@@ -157,97 +145,93 @@ void load_opts(bool first_time_launch) {
         }
     }
 
-    for (cont = cfg->GetFirstGroup(s, grp_idx); cont;
-         cont = cfg->GetNextGroup(s, grp_idx)) {
+    for (cont = cfg->GetFirstGroup(group, group_index); cont;
+         cont = cfg->GetNextGroup(group, group_index)) {
         // ignore wxWidgets-managed global library settings
-        if (s == "Persistent_Options") {
+        if (group == "Persistent_Options") {
             continue;
         }
 
         // ignore file history
-        if (s == "Recent") {
+        if (group == "Recent") {
             continue;
         }
 
-        cfg->SetPath(s);
-        int poff = s.size();
-        long entry_idx;
-        wxString e;
-
-        for (cont = cfg->GetFirstGroup(e, entry_idx); cont;
-             cont = cfg->GetNextGroup(e, entry_idx)) {
+        cfg->SetPath(group);
+        long subgroup_index;
+        wxString subgroup;
+        for (cont = cfg->GetFirstGroup(subgroup, subgroup_index); cont;
+             cont = cfg->GetNextGroup(subgroup, subgroup_index)) {
             // the only one with subgroups
-            if (s == wxT("Joypad") && e.size() == 1 && e[0] >= wxT('1') && e[0] <= wxT('4')) {
-                s.append(wxT('/'));
-                s.append(e);
-                s.append(wxT('/'));
-                int poff2 = s.size();
-                cfg->SetPath(e);
-                long key_idx;
+            if (group == "Joypad" && subgroup.size() == 1 && subgroup[0] >= '1' &&
+                subgroup[0] <= '4') {
+                wxString path = group + '/' + subgroup + '/';
+                cfg->SetPath(subgroup);
 
-                for (cont = cfg->GetFirstGroup(e, key_idx); cont;
-                     cont = cfg->GetNextGroup(e, key_idx)) {
-                    s.append(e);
-                    //wxLogWarning(_("Invalid option group %s present; removing if possible"), s.c_str());
-                    grp_del.push_back(s);
-                    s.resize(poff2);
+                wxString dummy_name;
+                long dummy_index;
+                for (cont = cfg->GetFirstGroup(dummy_name, dummy_index); cont;
+                     cont = cfg->GetNextGroup(dummy_name, dummy_index)) {
+                    wxString full_path = path + dummy_name;
+                    wxLogWarning(_("Invalid option group %s present; removing if possible"),
+                                 full_path.c_str());
+                    grp_del.push_back(full_path);
                 }
 
-                for (cont = cfg->GetFirstEntry(e, key_idx); cont;
-                     cont = cfg->GetNextEntry(e, key_idx)) {
-                    if (!config::StringToGameKey(e)) {
-                        s.append(e);
-                        //wxLogWarning(_("Invalid option %s present; removing if possible"), s.c_str());
-                        item_del.push_back(s);
-                        s.resize(poff2);
+                wxString entry_name;
+                long entry_index;
+                for (cont = cfg->GetFirstEntry(entry_name, entry_index); cont;
+                     cont = cfg->GetNextEntry(entry_name, entry_index)) {
+                    if (!config::StringToGameKey(entry_name)) {
+                        wxString full_path = path + entry_name;
+                        wxLogWarning(_("Invalid option %s present; removing if possible"),
+                                     full_path.c_str());
+                        item_del.push_back(full_path);
                     }
                 }
 
-                s.resize(poff);
-                cfg->SetPath(wxT("/"));
-                cfg->SetPath(s);
+                cfg->SetPath("/");
+                cfg->SetPath(group);
             } else {
-                s.append(wxT('/'));
-                s.append(e);
-                //wxLogWarning(_("Invalid option group %s present; removing if possible"), s.c_str());
-                grp_del.push_back(s);
-                s.resize(poff);
+                // Remove everything else.
+                wxString full_path = group + '/' + subgroup;
+                wxLogWarning(_("Invalid option group %s present; removing if possible"),
+                             full_path.c_str());
+                grp_del.push_back(full_path);
             }
         }
 
-        for (cont = cfg->GetFirstEntry(e, entry_idx); cont;
-             cont = cfg->GetNextEntry(e, entry_idx)) {
-            // kb options come from a different list
-            if (s == wxT("Keyboard")) {
-                const cmditem dummy = new_cmditem(e);
-
-                if (!std::binary_search(&cmdtab[0], &cmdtab[ncmds], dummy, cmditem_lt)) {
-                    s.append(wxT('/'));
-                    s.append(e);
-                    //wxLogWarning(_("Invalid option %s present; removing if possible"), s.c_str());
-                    item_del.push_back(s);
-                    s.resize(poff);
+        wxString entry;
+        long entry_index;
+        for (cont = cfg->GetFirstEntry(entry, entry_index); cont;
+             cont = cfg->GetNextEntry(entry, entry_index)) {
+            const wxString full_path = group + '/' + entry;
+            if (group == "Keyboard") {
+                const nonstd::optional<config::Command> command =
+                    config::Command::FromString(full_path);
+                if (!command) {
+                    // wxLogWarning(_("Invalid optio%s present; removing if possible"), full_path);
+                    item_del.push_back(full_path);
                 }
             } else {
-                s.append(wxT('/'));
-                s.append(e);
-                if (!config::Option::ByName(s) && s != "General/LastUpdated" &&
-                    s != "General/LastUpdatedFileName") {
-                    //wxLogWarning(_("Invalid option %s present; removing if possible"), s.c_str());
-                    item_del.push_back(s);
+                if (!config::Option::ByName(full_path) && full_path != "General/LastUpdated" &&
+                    full_path != "General/LastUpdatedFileName") {
+                    // wxLogWarning(_("Invalid option %s present; removing if possible"), s);
+                    item_del.push_back(group);
                 }
-                s.resize(poff);
             }
         }
 
-        cfg->SetPath(wxT("/"));
+        cfg->SetPath("/");
     }
 
-    for (size_t i = 0; i < item_del.size(); i++)
+    for (size_t i = 0; i < item_del.size(); i++) {
         cfg->DeleteEntry(item_del[i]);
+    }
 
-    for (size_t i = 0; i < grp_del.size(); i++)
+    for (size_t i = 0; i < grp_del.size(); i++) {
         cfg->DeleteGroup(grp_del[i]);
+    }
 
     // now read actual values and set to default if unset
     // config file will be updated with unset options
@@ -326,33 +310,35 @@ void load_opts(bool first_time_launch) {
 
     config::Bindings* const bindings = wxGetApp().bindings();
 
-    // Keyboard does not get written with defaults
-    wxString kbopt("Keyboard/");
-    int kboff = kbopt.size();
-    for (int i = 0; i < ncmds; i++) {
-        kbopt.resize(kboff);
-        kbopt.append(cmdtab[i].cmd);
+    // Read the keyboard entries, which have already been validated above.
+    const wxString keyboard = "Keyboard/";
+    cfg->SetPath("/Keyboard");
+    wxString entry;
+    long entry_index;
+    for (cont = cfg->GetFirstEntry(entry, entry_index); cont;
+         cont = cfg->GetNextEntry(entry, entry_index)) {
+        const wxString full_path = keyboard + entry;
+        const wxString value = cfg->Read(entry);
+        const nonstd::optional<config::Command> command = config::Command::FromString(full_path);
 
-        if (cfg->Read(kbopt, &s) && s.size()) {
-            auto inputs = config::UserInput::FromConfigString(s);
-            if (inputs.empty()) {
-                wxLogWarning(_("Invalid key binding %s for %s"), s.c_str(), kbopt.c_str());
-            } else {
-                for (const auto& input : inputs) {
-                    bindings->AssignInputToCommand(input,
-                                                   config::ShortcutCommand(cmdtab[i].cmd_id));
-                }
+        auto inputs = config::UserInput::FromConfigString(value);
+        if (inputs.empty()) {
+            wxLogWarning(_("Invalid key binding %s for %s"), value, entry);
+        } else {
+            for (const auto& input : inputs) {
+                bindings->AssignInputToCommand(input, command.value());
             }
         }
     }
 
-    // Force overwrite the default Joypad configuration.
+    // Overwrite the default Joypad configuration.
+    cfg->SetPath("/");
     for (auto& iter : bindings->GetJoypadConfiguration()) {
         const wxString optname = iter.first.ToConfigString();
-        if (cfg->Read(optname, &s)) {
-            const auto user_inputs = config::UserInput::FromConfigString(s);
-            if (!s.empty() && user_inputs.empty()) {
-                wxLogWarning(_("Invalid key binding %s for %s"), s.c_str(), optname.c_str());
+        if (cfg->Read(optname, &entry)) {
+            const auto user_inputs = config::UserInput::FromConfigString(entry);
+            if (!entry.empty() && user_inputs.empty()) {
+                wxLogWarning(_("Invalid key binding %s for %s"), entry, optname);
             }
             bindings->AssignInputsToCommand(user_inputs, iter.first);
         } else {
@@ -360,11 +346,7 @@ void load_opts(bool first_time_launch) {
         }
     }
 
-    // recent is special
-    // Recent does not get written with defaults
-    cfg->SetPath(wxT("/Recent"));
-    gopts.recent->Load(*cfg);
-    cfg->SetPath(wxT("/"));
+    cfg->SetPath("/");
     cfg->Flush();
 
     InitializeOptionObservers();
@@ -420,17 +402,7 @@ void update_shortcut_opts() {
     cfg->DeleteGroup("/Keyboard");
     cfg->SetPath("/Keyboard");
     for (const auto& iter : wxGetApp().bindings()->GetKeyboardConfiguration()) {
-        int cmd = 0;
-        for (cmd = 0; cmd < ncmds; cmd++)
-            if (cmdtab[cmd].cmd_id == iter.first)
-                break;
-        if (cmd == ncmds) {
-            // Command not found. This should never happen.
-            assert(false);
-            continue;
-        }
-
-        cfg->Write(cmdtab[cmd].cmd, iter.second);
+        cfg->Write(config::HandlerIDToConfigString(iter.first), iter.second);
     }
 
     cfg->SetPath("/");
@@ -460,8 +432,7 @@ void opt_set(const wxString& name, const wxString& val) {
     if (opt && !opt->is_none()) {
         switch (opt->type()) {
         case config::Option::Type::kNone:
-            // This should never happen.
-            assert(false);
+            wxLogWarning(_("Invalid option %s"), name);
             return;
         case config::Option::Type::kBool:
             if (val != '0' && val != '1') {
@@ -474,7 +445,7 @@ void opt_set(const wxString& name, const wxString& val) {
         case config::Option::Type::kDouble: {
             double value;
             if (!val.ToDouble(&value)) {
-                wxLogWarning(_("Invalid value %s for option %s"), val, name.c_str());
+                wxLogWarning(_("Invalid value %s for option %s"), val, name);
                 return;
             }
             opt->SetDouble(value);
@@ -483,7 +454,7 @@ void opt_set(const wxString& name, const wxString& val) {
         case config::Option::Type::kInt: {
             long value;
             if (!val.ToLong(&value)) {
-                wxLogWarning(_("Invalid value %s for option %s"), val, name.c_str());
+                wxLogWarning(_("Invalid value %s for option %s"), val, name);
                 return;
             }
             opt->SetInt(static_cast<int32_t>(value));
@@ -492,7 +463,7 @@ void opt_set(const wxString& name, const wxString& val) {
         case config::Option::Type::kUnsigned: {
             unsigned long value;
             if (!val.ToULong(&value)) {
-                wxLogWarning(_("Invalid value %s for option %s"), val, name.c_str());
+                wxLogWarning(_("Invalid value %s for option %s"), val, name);
                 return;
             }
             opt->SetUnsigned(static_cast<uint32_t>(value));

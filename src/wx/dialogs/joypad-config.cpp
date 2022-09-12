@@ -2,7 +2,9 @@
 
 #include <wx/checkbox.h>
 
+#include "wx/config/bindings.h"
 #include "wx/config/command.h"
+#include "wx/config/config-provider.h"
 #include "wx/config/option-proxy.h"
 #include "wx/dialogs/base-dialog.h"
 #include "wx/widgets/client-data.h"
@@ -17,12 +19,12 @@ namespace {
 using GameJoyClientData = widgets::ClientData<config::GameJoy>;
 
 // A validator for the UserInputCtrl. This validator is used to transfer the
-// GameControl data to and from the UserInputCtrl. `bindings_provider` must
+// GameControl data to and from the UserInputCtrl. `config_provider` must
 // outlive this object.
 class UserInputCtrlValidator : public wxValidator {
 public:
     explicit UserInputCtrlValidator(const config::GameCommand game_control,
-                                    const config::BindingsProvider bindings_provider);
+                                    config::ConfigProvider* const config_provider);
     ~UserInputCtrlValidator() override = default;
 
     wxObject* Clone() const override;
@@ -34,24 +36,25 @@ protected:
     bool Validate(wxWindow*) override { return true; }
 
     const config::GameCommand game_control_;
-    const config::BindingsProvider bindings_provider;
+    config::ConfigProvider* const config_provider_;
 };
 
 UserInputCtrlValidator::UserInputCtrlValidator(const config::GameCommand game_control,
-                                               config::BindingsProvider const bindings_provider)
-    : wxValidator(), game_control_(game_control), bindings_provider(bindings_provider) {
-    assert(bindings_provider);
+                                               config::ConfigProvider* const config_provider)
+    : wxValidator(), game_control_(game_control), config_provider_(config_provider) {
+    assert(config_provider);
 }
 
 wxObject* UserInputCtrlValidator::Clone() const {
-    return new UserInputCtrlValidator(game_control_, bindings_provider);
+    return new UserInputCtrlValidator(game_control_, config_provider_);
 }
 
 bool UserInputCtrlValidator::TransferToWindow() {
     widgets::UserInputCtrl* control = wxDynamicCast(GetWindow(), widgets::UserInputCtrl);
     assert(control);
 
-    control->SetInputs(bindings_provider()->InputsForCommand(config::Command(game_control_)));
+    control->SetInputs(
+        config_provider_->bindings()->InputsForCommand(config::Command(game_control_)));
     return true;
 }
 
@@ -59,9 +62,9 @@ bool UserInputCtrlValidator::TransferFromWindow() {
     widgets::UserInputCtrl* control = wxDynamicCast(GetWindow(), widgets::UserInputCtrl);
     assert(control);
 
-    bindings_provider()->ClearCommandAssignments(config::Command(game_control_));
+    config_provider_->bindings()->ClearCommandAssignments(config::Command(game_control_));
     for (const auto& input : control->inputs()) {
-        bindings_provider()->AssignInputToCommand(input, config::Command(game_control_));
+        config_provider_->bindings()->AssignInputToCommand(input, config::Command(game_control_));
     }
 
     return true;
@@ -71,14 +74,14 @@ bool UserInputCtrlValidator::TransferFromWindow() {
 
 // static
 JoypadConfig* JoypadConfig::NewInstance(wxWindow* parent,
-                                        const config::BindingsProvider bindings_provider) {
+                                        config::ConfigProvider* const config_provider) {
     assert(parent);
-    assert(bindings_provider);
-    return new JoypadConfig(parent, bindings_provider);
+    assert(config_provider);
+    return new JoypadConfig(parent, config_provider);
 }
 
-JoypadConfig::JoypadConfig(wxWindow* parent, const config::BindingsProvider bindings_provider)
-    : BaseDialog(parent, "JoypadConfig"), bindings_provider_(bindings_provider) {
+JoypadConfig::JoypadConfig(wxWindow* parent, config::ConfigProvider* const config_provider)
+    : BaseDialog(parent, "JoypadConfig"), config_provider_(config_provider) {
     this->Bind(wxEVT_CHECKBOX, std::bind(&JoypadConfig::ToggleSDLGameControllerMode, this),
                XRCID("SDLGameControllerMode"));
 
@@ -105,7 +108,7 @@ JoypadConfig::JoypadConfig(wxWindow* parent, const config::BindingsProvider bind
             wxWindow* current_parent = game_key_control->GetParent();
 
             game_key_control->SetValidator(
-                UserInputCtrlValidator(config::GameCommand(joypad, game_key), bindings_provider));
+                UserInputCtrlValidator(config::GameCommand(joypad, game_key), config_provider));
 
             if (current_parent == prev_parent) {
                 // The first control will be skipped here, but that's fine since
@@ -135,7 +138,7 @@ void JoypadConfig::ResetToDefaults(wxWindow* panel) {
     const config::GameJoy& joypad = GameJoyClientData::From(panel);
     for (const config::GameKey& game_key : config::kAllGameKeys) {
         widgets::GetValidatedChild<widgets::UserInputCtrl>(panel, config::GameKeyToString(game_key))
-            ->SetInputs(bindings_provider_()->DefaultInputsForCommand(
+            ->SetInputs(config_provider_->bindings()->DefaultInputsForCommand(
                 config::GameCommand(joypad, game_key)));
     }
 }

@@ -4,7 +4,11 @@
 
 #include <gdk/gdkwayland.h>
 
-bool IsWayland() { return GDK_IS_WAYLAND_DISPLAY(gdk_display_get_default()); }
+bool IsWayland() {
+    // No need to recompute the value every time.
+    static const bool kIsWayland(GDK_IS_WAYLAND_DISPLAY(gdk_display_get_default()));
+    return kIsWayland;
+}
 
 #endif
 

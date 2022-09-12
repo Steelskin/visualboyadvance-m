@@ -6,9 +6,6 @@
 #include <wx/string.h>
 #include <wx/vidmode.h>
 
-// Forward declaration.
-class wxFileHistory;
-
 extern struct opts_t {
     opts_t();
 
@@ -38,15 +35,9 @@ extern struct opts_t {
     /// Sound
     int sound_en = 0x30f; // soundSetEnable()
 
-    /// Recent
-    wxFileHistory* recent = nullptr;
-
     /// UI Config
     bool hide_menu_bar = true;
     bool suspend_screensaver = false;
-
-    /// wxWindows
-    // wxWidgets-generated options (opaque)
 } gopts;
 
 // call to load config (once)

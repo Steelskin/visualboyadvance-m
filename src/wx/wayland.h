@@ -36,7 +36,7 @@ void MoveWaylandSubsurface(wxGLCanvasEGL* win);
 
 #else
 
-inline void MoveWaylandSubsurface([[maybe_unused]] wxGLCanvas* win) {};
+inline void MoveWaylandSubsurface([[maybe_unused]] wxGLCanvas* win) {}
 
 #endif
 
@@ -44,7 +44,7 @@ inline void MoveWaylandSubsurface([[maybe_unused]] wxGLCanvas* win) {};
 
 constexpr bool IsWayland() { return false; }
 
-inline void MoveWaylandSubsurface([[maybe_unused]] wxGLCanvas* win) {};
+inline void MoveWaylandSubsurface([[maybe_unused]] wxGLCanvas* win) {}
 
 #endif // gtk
 

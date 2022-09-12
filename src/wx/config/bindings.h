@@ -7,10 +7,8 @@
 #include <vector>
 
 #include "wx/config/command.h"
+#include "wx/config/handler-id.h"
 #include "wx/config/user-input.h"
-
-// wxWidgets only goes up to `wxID_FILE9` but we want 10 recent files.
-#define wxID_FILE10 (wxID_FILE9 + 1)
 
 namespace config {
 
@@ -44,7 +42,7 @@ public:
     // - User-added custom bindings. These appear under [Keyboard/CommandName].
     // Essentially, this is a diff between the default shortcuts and the user
     // configuration.
-    std::vector<std::pair<int, wxString>> GetKeyboardConfiguration() const;
+    std::vector<std::pair<HandlerID, wxString>> GetKeyboardConfiguration() const;
 
     // Returns the game control configuration for the INI file. These go in the
     // [Joypad] section of the INI file.
@@ -97,8 +95,6 @@ private:
     // configuration to save in the INI file.
     std::unordered_map<UserInput, ShortcutCommand> disabled_defaults_;
 };
-
-using BindingsProvider = std::function<Bindings*()>;
 
 }  // namespace config
 

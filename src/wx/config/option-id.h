@@ -34,7 +34,6 @@ enum class OptionID {
     /// GBA
     kGBABiosFile,
     kGBALCDFilter,
-#ifndef NO_LINK
     kGBALinkAuto,
     kGBALinkFast,
     kGBALinkHost,
@@ -43,7 +42,6 @@ enum class OptionID {
     kGBALinkProto,
     kGBALinkTimeout,
     kGBALinkType,
-#endif
     kGBAROMDir,
 
     /// General
@@ -83,9 +81,7 @@ enum class OptionID {
     kPrefGBPrinter,
     kPrefGDBBreakOnLoad,
     kPrefGDBPort,
-#ifndef NO_LINK
     kPrefLinkNumPlayers,
-#endif
     kPrefMaxScale,
     kPrefPauseWhenInactive,
     kPrefRTCEnabled,

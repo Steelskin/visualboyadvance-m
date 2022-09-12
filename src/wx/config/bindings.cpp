@@ -5,6 +5,7 @@
 #include <wx/xrc/xmlres.h>
 #include <unordered_set>
 
+#include "wx/config/handler-id.h"
 #include "wx/config/user-input.h"
 
 #define VBAM_BINDINGS_INTERNAL_INCLUDE
@@ -12,15 +13,6 @@
 #undef VBAM_BINDINGS_INTERNAL_INCLUDE
 
 namespace config {
-
-namespace {
-
-int NoopCommand() {
-    static const int noop = XRCID("NOOP");
-    return noop;
-}
-
-}  // namespace
 
 // static
 const std::unordered_set<UserInput>& Bindings::DefaultInputsForCommand(const Command& command) {
@@ -44,8 +36,8 @@ Bindings::Bindings(
       input_to_control_(input_to_control.begin(), input_to_control.end()),
       disabled_defaults_(disabled_defaults.begin(), disabled_defaults.end()) {}
 
-std::vector<std::pair<int, wxString>> Bindings::GetKeyboardConfiguration() const {
-    std::vector<std::pair<int, wxString>> config;
+std::vector<std::pair<HandlerID, wxString>> Bindings::GetKeyboardConfiguration() const {
+    std::vector<std::pair<HandlerID, wxString>> config;
     config.reserve(control_to_inputs_.size() + 1);
 
     if (!disabled_defaults_.empty()) {
@@ -53,7 +45,8 @@ std::vector<std::pair<int, wxString>> Bindings::GetKeyboardConfiguration() const
         for (const auto& iter : disabled_defaults_) {
             noop_inputs.insert(iter.first);
         }
-        config.push_back(std::make_pair(NoopCommand(), UserInput::SpanToConfigString(noop_inputs)));
+        config.push_back(
+            std::make_pair(HandlerID::Noop, UserInput::SpanToConfigString(noop_inputs)));
     }
 
     for (const auto& iter : control_to_inputs_) {
@@ -74,8 +67,8 @@ std::vector<std::pair<int, wxString>> Bindings::GetKeyboardConfiguration() const
         }
 
         if (!inputs.empty()) {
-            const int command_id = iter.first.shortcut().id();
-            config.push_back(std::make_pair(command_id, UserInput::SpanToConfigString(inputs)));
+            const HandlerID handler_id = iter.first.shortcut().id();
+            config.push_back(std::make_pair(handler_id, UserInput::SpanToConfigString(inputs)));
         }
     }
 
@@ -101,7 +94,7 @@ std::vector<std::pair<GameCommand, wxString>> Bindings::GetJoypadConfiguration()
 }
 
 std::unordered_set<UserInput> Bindings::InputsForCommand(const Command& command) const {
-    if (command.is_shortcut() && command.shortcut().id() == NoopCommand()) {
+    if (command.is_shortcut() && command.shortcut().id() == HandlerID::Noop) {
         std::unordered_set<UserInput> noop_inputs;
         for (const auto& iter : disabled_defaults_) {
             noop_inputs.insert(iter.first);
@@ -129,7 +122,7 @@ Bindings Bindings::Clone() const {
 }
 
 void Bindings::AssignInputToCommand(const UserInput& input, const Command& command) {
-    if (command.is_shortcut() && command.shortcut().id() == NoopCommand()) {
+    if (command.is_shortcut() && command.shortcut().id() == HandlerID::Noop) {
         // "Assigning to Noop" means unassinging the default binding.
         UnassignDefaultBinding(input);
         return;

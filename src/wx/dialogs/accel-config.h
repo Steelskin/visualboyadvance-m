@@ -3,21 +3,28 @@
 
 #include <unordered_map>
 
+#include <wx/treebase.h>
 #include <wx/treectrl.h>
 
 #include "wx/config/bindings.h"
 #include "wx/config/command.h"
+#include "wx/config/handler-id.h"
 #include "wx/dialogs/base-dialog.h"
 
 // Forward declarations.
 class wxControl;
 class wxListBox;
-class wxMenu;
-class wxMenuBar;
 class wxWindow;
+
+namespace config {
+class ConfigProvider;
+}
 
 namespace widgets {
 class UserInputCtrl;
+class ShortcutMenu;
+class ShortcutMenuBar;
+class ShortcutMenuItem;
 }
 
 namespace dialogs {
@@ -26,9 +33,8 @@ namespace dialogs {
 class AccelConfig : public BaseDialog {
 public:
     static AccelConfig* NewInstance(wxWindow* parent,
-                                    wxMenuBar* menu_bar,
-                                    wxMenu* recents,
-                                    const config::BindingsProvider bindings_provider);
+                                    widgets::ShortcutMenuBar* menu_bar,
+                                    config::ConfigProvider* const config_provider);
 
     ~AccelConfig() override = default;
 
@@ -37,9 +43,8 @@ private:
     // static method. This is because this class is destroyed when its
     // owner, `parent` is destroyed. This prevents accidental deletion.
     AccelConfig(wxWindow* parent,
-                wxMenuBar* menu_bar,
-                wxMenu* recents,
-                const config::BindingsProvider bindings_provider);
+                widgets::ShortcutMenuBar* menu_bar,
+                config::ConfigProvider* const config_provider);
 
     // Re-initializes the configuration.
     void OnDialogShown(wxShowEvent& ev);
@@ -79,9 +84,9 @@ private:
     std::unordered_map<config::ShortcutCommand, wxTreeItemId> command_to_item_id_;
 
     config::Bindings config_shortcuts_;
-    int selected_command_ = 0;
+    config::HandlerID selected_command_ = config::HandlerID::Noop;
 
-    const config::BindingsProvider bindings_provider_;
+    config::ConfigProvider* const config_provider_;
 };
 
 }  // namespace dialogs

@@ -1,13 +1,13 @@
-#include "wx/config/bindings.h"
-#include "wx/config/command.h"
+#define VBAM_BINDINGS_INTERNAL_INCLUDE
+#include "wx/config/internal/bindings-internal.h"
+#undef VBAM_BINDINGS_INTERNAL_INCLUDE
 
 #include <unordered_set>
 
 #include <wx/xrc/xmlres.h>
 
-#define VBAM_BINDINGS_INTERNAL_INCLUDE
-#include "wx/config/internal/bindings-internal.h"
-#undef VBAM_BINDINGS_INTERNAL_INCLUDE
+#include "wx/config/command.h"
+#include "wx/config/handler-id.h"
 
 namespace config {
 namespace internal {
@@ -15,288 +15,288 @@ namespace internal {
 const std::unordered_map<Command, std::unordered_set<UserInput>>& DefaultInputs() {
     // clang-format off
     static const std::unordered_map<Command, std::unordered_set<UserInput>> kDefaultInputs = {
-        {ShortcutCommand(XRCID("CheatsList")),
+        {ShortcutCommand(HandlerID::CheatsList),
             {
                 KeyboardInput('C', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("NextFrame")),
+        {ShortcutCommand(HandlerID::NextFrame),
             {
                 KeyboardInput('N', wxMOD_CMD)
             }},
         // this was annoying people A LOT #334
-        // {ShortcutCommand(wxID_EXIT),
+        // {ShortcutCommand(HandlerID::Exit),
         //     {
         //         KeyboardInput(WXK_ESCAPE, wxMOD_NONE)
         //     }},
         // this was annoying people #298
-        // {ShortcutCommand(wxID_EXIT),
+        // {ShortcutCommand(HandlerID::Exit),
         //     {
         //         KeyboardInput('X', wxMOD_CMD)
         //     }},
-        {ShortcutCommand(wxID_EXIT),
+        {ShortcutCommand(HandlerID::Exit),
             {
                 KeyboardInput('Q', wxMOD_CMD)
             }},
-        {ShortcutCommand(wxID_CLOSE),
+        {ShortcutCommand(HandlerID::Close),
             {
                 KeyboardInput('W', wxMOD_CMD)
             }},
         // load most recent is more commonly used than load state
-        // {ShortcutCommand(XRCID("Load")),
+        // {ShortcutCommand(HandlerID::LoadStateFile),
         //     {
         //         KeyboardInput('L', wxMOD_CMD)
         // }},
-        {ShortcutCommand(XRCID("LoadGameRecent")),
+        {ShortcutCommand(HandlerID::LoadStateRecent),
             {
                 KeyboardInput('L', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("LoadGame01")),
+        {ShortcutCommand(HandlerID::LoadState01),
             {
                 KeyboardInput(WXK_F1, wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("LoadGame02")),
+        {ShortcutCommand(HandlerID::LoadState02),
             {
                 KeyboardInput(WXK_F2, wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("LoadGame03")),
+        {ShortcutCommand(HandlerID::LoadState03),
             {
                 KeyboardInput(WXK_F3, wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("LoadGame04")),
+        {ShortcutCommand(HandlerID::LoadState04),
             {
                 KeyboardInput(WXK_F4, wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("LoadGame05")),
+        {ShortcutCommand(HandlerID::LoadState05),
             {
                 KeyboardInput(WXK_F5, wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("LoadGame06")),
+        {ShortcutCommand(HandlerID::LoadState06),
             {
                 KeyboardInput(WXK_F6, wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("LoadGame07")),
+        {ShortcutCommand(HandlerID::LoadState07),
             {
                 KeyboardInput(WXK_F7, wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("LoadGame08")),
+        {ShortcutCommand(HandlerID::LoadState08),
             {
                 KeyboardInput(WXK_F8, wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("LoadGame09")),
+        {ShortcutCommand(HandlerID::LoadState09),
             {
                 KeyboardInput(WXK_F9, wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("LoadGame10")),
+        {ShortcutCommand(HandlerID::LoadState10),
             {
                 KeyboardInput(WXK_F10, wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("Pause")),
+        {ShortcutCommand(HandlerID::Pause),
          {KeyboardInput(WXK_PAUSE, wxMOD_NONE), KeyboardInput('P', wxMOD_CMD)}},
-        {ShortcutCommand(XRCID("Reset")),
+        {ShortcutCommand(HandlerID::Reset),
             {
                 KeyboardInput('R', wxMOD_CMD)
             }},
         // add shortcuts for original size multiplier #415
-        {ShortcutCommand(XRCID("SetSize1x")),
+        {ShortcutCommand(HandlerID::SetSize1x),
             {
                 KeyboardInput('1', wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("SetSize2x")),
+        {ShortcutCommand(HandlerID::SetSize2x),
             {
                 KeyboardInput('2', wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("SetSize3x")),
+        {ShortcutCommand(HandlerID::SetSize3x),
             {
                 KeyboardInput('3', wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("SetSize4x")),
+        {ShortcutCommand(HandlerID::SetSize4x),
             {
                 KeyboardInput('4', wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("SetSize5x")),
+        {ShortcutCommand(HandlerID::SetSize5x),
             {
                 KeyboardInput('5', wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("SetSize6x")),
+        {ShortcutCommand(HandlerID::SetSize6x),
             {
                 KeyboardInput('6', wxMOD_NONE)
             }},
         // save oldest is more commonly used than save other
-        // {ShortcutCommand(XRCID("Save")),
+        // {ShortcutCommand(HandlerID::SaveStateFile),
         //     {
         //         KeyboardInput('S', wxMOD_CMD)
         //     }},
-        {ShortcutCommand(XRCID("SaveGameOldest")),
+        {ShortcutCommand(HandlerID::SaveStateOldest),
             {
                 KeyboardInput('S', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("SaveGame01")),
+        {ShortcutCommand(HandlerID::SaveState01),
             {
                 KeyboardInput(WXK_F1, wxMOD_SHIFT)
             }},
-        {ShortcutCommand(XRCID("SaveGame02")),
+        {ShortcutCommand(HandlerID::SaveState02),
             {
                 KeyboardInput(WXK_F2, wxMOD_SHIFT)
             }},
-        {ShortcutCommand(XRCID("SaveGame03")),
+        {ShortcutCommand(HandlerID::SaveState03),
             {
                 KeyboardInput(WXK_F3, wxMOD_SHIFT)
             }},
-        {ShortcutCommand(XRCID("SaveGame04")),
+        {ShortcutCommand(HandlerID::SaveState04),
             {
                 KeyboardInput(WXK_F4, wxMOD_SHIFT)
             }},
-        {ShortcutCommand(XRCID("SaveGame05")),
+        {ShortcutCommand(HandlerID::SaveState05),
             {
                 KeyboardInput(WXK_F5, wxMOD_SHIFT)
             }},
-        {ShortcutCommand(XRCID("SaveGame06")),
+        {ShortcutCommand(HandlerID::SaveState06),
             {
                 KeyboardInput(WXK_F6, wxMOD_SHIFT)
             }},
-        {ShortcutCommand(XRCID("SaveGame07")),
+        {ShortcutCommand(HandlerID::SaveState07),
             {
                 KeyboardInput(WXK_F7, wxMOD_SHIFT)
             }},
-        {ShortcutCommand(XRCID("SaveGame08")),
+        {ShortcutCommand(HandlerID::SaveState08),
             {
                 KeyboardInput(WXK_F8, wxMOD_SHIFT)
             }},
-        {ShortcutCommand(XRCID("SaveGame09")),
+        {ShortcutCommand(HandlerID::SaveState09),
             {
                 KeyboardInput(WXK_F9, wxMOD_SHIFT)
             }},
-        {ShortcutCommand(XRCID("SaveGame10")),
+        {ShortcutCommand(HandlerID::SaveState10),
             {
                 KeyboardInput(WXK_F10, wxMOD_SHIFT)
             }},
         // I prefer the SDL ESC key binding
-        // {ShortcutCommand(XRCID("ToggleFullscreen")),
+        // {ShortcutCommand(HandlerID::ToggleFullscreen),
         //     {
         //         KeyboardInput(WXK_ESCAPE, wxMOD_NONE)
         //     }},
         // alt-enter is more standard anyway
-        {ShortcutCommand(XRCID("ToggleFullscreen")),
+        {ShortcutCommand(HandlerID::ToggleFullscreen),
             {
                 KeyboardInput(WXK_RETURN, wxMOD_ALT)
             }},
-        {ShortcutCommand(XRCID("JoypadAutofireA")),
+        {ShortcutCommand(HandlerID::JoypadAutofireA),
             {
                 KeyboardInput('1', wxMOD_ALT)
             }},
-        {ShortcutCommand(XRCID("JoypadAutofireB")),
+        {ShortcutCommand(HandlerID::JoypadAutofireB),
             {
                 KeyboardInput('2', wxMOD_ALT)
             }},
-        {ShortcutCommand(XRCID("JoypadAutofireL")),
+        {ShortcutCommand(HandlerID::JoypadAutofireL),
             {
                 KeyboardInput('3', wxMOD_ALT)
             }},
-        {ShortcutCommand(XRCID("JoypadAutofireR")),
+        {ShortcutCommand(HandlerID::JoypadAutofireR),
             {
                 KeyboardInput('4', wxMOD_ALT)
             }},
-        {ShortcutCommand(XRCID("VideoLayersBG0")),
+        {ShortcutCommand(HandlerID::VideoLayersBG0),
             {
                 KeyboardInput('1', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("VideoLayersBG1")),
+        {ShortcutCommand(HandlerID::VideoLayersBG1),
             {
                 KeyboardInput('2', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("VideoLayersBG2")),
+        {ShortcutCommand(HandlerID::VideoLayersBG2),
             {
                 KeyboardInput('3', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("VideoLayersBG3")),
+        {ShortcutCommand(HandlerID::VideoLayersBG3),
             {
                 KeyboardInput('4', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("VideoLayersOBJ")),
+        {ShortcutCommand(HandlerID::VideoLayersOBJ),
             {
                 KeyboardInput('5', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("VideoLayersWIN0")),
+        {ShortcutCommand(HandlerID::VideoLayersWIN0),
             {
                 KeyboardInput('6', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("VideoLayersWIN1")),
+        {ShortcutCommand(HandlerID::VideoLayersWIN1),
             {
                 KeyboardInput('7', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("VideoLayersOBJWIN")),
+        {ShortcutCommand(HandlerID::VideoLayersOBJWIN),
             {
                 KeyboardInput('8', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("Rewind")),
+        {ShortcutCommand(HandlerID::Rewind),
             {
                 KeyboardInput('B', wxMOD_CMD)
             }},
         // The following commands do not have the dafault wxWidgets shortcut.
-        // The wxID_FILE1 shortcut is active when the first recent menu entry is populated.
-        // The same goes for the others, wxID_FILE2 is active when the second recent menu entry is
+        // The HandlerID::RecentFile1 shortcut is active when the first recent menu entry is populated.
+        // The same goes for the others, HandlerID::RecentFile2 is active when the second recent menu entry is
         // populated, etc.
-        {ShortcutCommand(wxID_FILE1),
+        {ShortcutCommand(HandlerID::RecentFile1),
             {
                 KeyboardInput(WXK_F1, wxMOD_CMD)
             }},
-        {ShortcutCommand(wxID_FILE2),
+        {ShortcutCommand(HandlerID::RecentFile2),
             {
                 KeyboardInput(WXK_F2, wxMOD_CMD)
             }},
-        {ShortcutCommand(wxID_FILE4),
+        {ShortcutCommand(HandlerID::RecentFile3),
             {
                 KeyboardInput(WXK_F3, wxMOD_CMD)
             }},
-        {ShortcutCommand(wxID_FILE4),
+        {ShortcutCommand(HandlerID::RecentFile4),
             {
                 KeyboardInput(WXK_F4, wxMOD_CMD)
             }},
-        {ShortcutCommand(wxID_FILE5),
+        {ShortcutCommand(HandlerID::RecentFile5),
             {
                 KeyboardInput(WXK_F5, wxMOD_CMD)
             }},
-        {ShortcutCommand(wxID_FILE6),
+        {ShortcutCommand(HandlerID::RecentFile6),
             {
                 KeyboardInput(WXK_F6, wxMOD_CMD)
             }},
-        {ShortcutCommand(wxID_FILE7),
+        {ShortcutCommand(HandlerID::RecentFile7),
             {
                 KeyboardInput(WXK_F7, wxMOD_CMD)
             }},
-        {ShortcutCommand(wxID_FILE8),
+        {ShortcutCommand(HandlerID::RecentFile8),
             {
                 KeyboardInput(WXK_F8, wxMOD_CMD)
             }},
-        {ShortcutCommand(wxID_FILE9),
+        {ShortcutCommand(HandlerID::RecentFile9),
             {
                 KeyboardInput(WXK_F9, wxMOD_CMD)
             }},
-        {ShortcutCommand(wxID_FILE10),
+        {ShortcutCommand(HandlerID::RecentFile10),
             {
                 KeyboardInput(WXK_F10, wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("VideoLayersReset")),
+        {ShortcutCommand(HandlerID::VideoLayersReset),
             {
                 KeyboardInput('0', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("ChangeFilter")),
+        {ShortcutCommand(HandlerID::ChangeFilter),
             {
                 KeyboardInput('G', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("ChangeIFB")),
+        {ShortcutCommand(HandlerID::ChangeIFB),
             {
                 KeyboardInput('I', wxMOD_CMD)
             }},
-        {ShortcutCommand(XRCID("IncreaseVolume")),
+        {ShortcutCommand(HandlerID::IncreaseVolume),
             {
                 KeyboardInput(WXK_NUMPAD_ADD, wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("DecreaseVolume")),
+        {ShortcutCommand(HandlerID::DecreaseVolume),
             {
                 KeyboardInput(WXK_NUMPAD_SUBTRACT, wxMOD_NONE)
             }},
-        {ShortcutCommand(XRCID("ToggleSound")),
+        {ShortcutCommand(HandlerID::ToggleSound),
             {
                 KeyboardInput(WXK_NUMPAD_ENTER, wxMOD_NONE)
             }},

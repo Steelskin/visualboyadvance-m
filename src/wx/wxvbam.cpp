@@ -1,5 +1,19 @@
 #include "wx/wxvbam.h"
-#include "wx/config/command.h"
+
+#include <wx/cmdline.h>
+#include <wx/confbase.h>
+#include <wx/fs_arc.h>
+#include <wx/fs_mem.h>
+#include <wx/image.h>
+#include <wx/imagxpm.h>
+#include <wx/mstream.h>
+#include <wx/object.h>
+#include <wx/regex.h>
+#include <wx/sstream.h>
+#include <wx/stdpaths.h>
+#include <wx/wfstream.h>
+#include <wx/wxcrtvararg.h>
+#include <wx/xrc/xmlres.h>
 
 #ifdef __WXMSW__
 #include <windows.h>
@@ -9,74 +23,27 @@
 #include <gdk/gdk.h>
 #endif
 
-#include <stdio.h>
-#include <wx/cmdline.h>
-#include <wx/display.h>
-#include <wx/file.h>
-#include <wx/filesys.h>
-#include <wx/fs_arc.h>
-#include <wx/fs_mem.h>
-#include <wx/menu.h>
-#include <wx/mstream.h>
-#include <wx/progdlg.h>
-#include <wx/protocol/http.h>
-#include <wx/regex.h>
-#include <wx/sstream.h>
-#include <wx/stdpaths.h>
-#include <wx/string.h>
-#include <wx/txtstrm.h>
-#include <wx/url.h>
-#include <wx/wfstream.h>
-#include <wx/wxcrtvararg.h>
-#include <wx/zipstrm.h>
-
 #include "components/user_config/user_config.h"
-#include "core/gba/gbaSound.h"
 #include "wx/builtin-over.h"
 #include "wx/builtin-xrc.h"
+#include "wx/config/bindings.h"
 #include "wx/config/emulated-gamepad.h"
+#include "wx/config/file-history.h"
 #include "wx/config/option-proxy.h"
-#include "wx/config/option.h"
-#include "wx/config/user-input.h"
+#include "wx/main-frame.h"
+#include "wx/opts.h"
 #include "wx/strutils.h"
 #include "wx/wayland.h"
-#include "wx/widgets/group-check-box.h"
-#include "wx/widgets/user-input-ctrl.h"
+#include "wx/widgets/shortcut-menu-bar.h"
+#include "wx/widgets/shortcut-menu-item.h"
 #include "wx/widgets/utils.h"
+#include "wx/widgets/widgets.h"
 
 #if defined(VBAM_ENABLE_DEBUGGER)
 #include "core/gba/gbaRemote.h"
 #endif  // defined(VBAM_ENABLE_DEBUGGER)
 
 namespace {
-
-// Resets the accelerator text for `menu_item` to the first keyboard input.
-void ResetMenuItemAccelerator(wxMenuItem* menu_item) {
-    const wxString old_label = menu_item->GetItemLabel();
-    const size_t tab_index = old_label.find('\t');
-    wxString new_label;
-    new_label = old_label;
-    if (tab_index != wxString::npos) {
-        new_label.resize(tab_index);
-    }
-    std::unordered_set<config::UserInput> user_inputs =
-        wxGetApp().bindings()->InputsForCommand(
-            config::ShortcutCommand(menu_item->GetId()));
-    for (const config::UserInput& user_input : user_inputs) {
-        if (user_input.device() != config::UserInput::Device::Keyboard) {
-            // Cannot use joystick keybinding as text without wx assertion error.
-            continue;
-        }
-
-        new_label.append('\t');
-        new_label.append(user_input.ToLocalizedString());
-        break;
-    }
-
-    if (old_label != new_label) {
-        menu_item->SetItemLabel(new_label);
-    }
-}
 
 static const wxString kOldConfigFileName("vbam.conf");
 static const wxString knewConfigFileName("vbam.ini");
@@ -158,19 +125,9 @@ wxvbamApp& wxGetApp() {
     return *static_cast<wxvbamApp*>(wxApp::GetInstance());
 }
 
-IMPLEMENT_DYNAMIC_CLASS(MainFrame, wxFrame)
-
 #ifndef NO_ONLINEUPDATES
 #include "autoupdater/autoupdater.h"
 #endif // NO_ONLINEUPDATES
-
-// Initializer for struct cmditem
-cmditem new_cmditem(const wxString cmd, const wxString name, int cmd_id,
-                    int mask_flags, wxMenuItem* mi)
-{
-    struct cmditem tmp = {cmd, name, cmd_id, mask_flags, mi};
-    return tmp;
-}
 
 // generate config file path
 static void get_config_path(wxPathList& path, bool exists = true)
@@ -258,7 +215,9 @@ wxvbamApp::wxvbamApp()
       pending_fullscreen(false),
       frame(nullptr),
       using_wayland(false),
-      emulated_gamepad_(std::bind(&wxvbamApp::bindings, this)),
+      bindings_(std::make_unique<config::Bindings>()),
+      emulated_gamepad_(std::make_unique<config::EmulatedGamepad>(this)),
+      file_history_(std::make_unique<config::FileHistory>()),
       sdl_poller_(std::bind(&wxvbamApp::GetJoyEventHandler, this)) {}
 
 const wxString wxvbamApp::GetPluginsDir()
@@ -347,13 +306,9 @@ bool wxvbamApp::OnInit() {
         return true;
 
     // prepare for loading xrc files
-    wxXmlResource* xr = wxXmlResource::Get();
-    // note: if linking statically, next 2 pull in lot of unused code
-    // maybe in future if not wxSHARED, load only builtin-needed handlers
-    xr->InitAllHandlers();
-    xr->AddHandler(new widgets::GroupCheckBoxXmlHandler());
-    xr->AddHandler(new widgets::UserInputCtrlXmlHandler());
-    wxInitAllImageHandlers();
+    wxXmlResource* xr = widgets::InitializeXmlHandlers();
+    wxImage::AddHandler(new wxXPMHandler());
+
     get_config_path(config_path);
     // first, load override xrcs
     // this can only override entire root nodes
@@ -434,6 +389,9 @@ bool wxvbamApp::OnInit() {
 
     // Load the default options.
     load_opts(!config_file_.Exists());
+
+    // Load the FileHistory.
+    file_history_->LoadConfig();
 
     // wxGLCanvas segfaults under wayland before wx 3.2
 #if defined(HAVE_WAYLAND_SUPPORT) && !defined(HAVE_WAYLAND_EGL)
@@ -754,9 +712,20 @@ bool wxvbamApp::OnCmdLineParsed(wxCmdLineParser& cl)
             wxPrintf("%s\n", opt.ToHelperString());
         }
 
+        // We need to load the menu bar to do this.
+
         wxPrintf(_("The commands available for the Keyboard/* option are:\n\n"));
-        for (int i = 0; i < ncmds; i++)
-            wxPrintf(wxT("%s (%s)\n"), cmdtab[i].cmd.c_str(), cmdtab[i].name.c_str());
+        widgets::ShortcutMenuBar* menu_bar = wxDynamicCast(
+            wxXmlResource::Get()->LoadObject(nullptr, "MainMenu",
+                                             widgets::ShortcutMenuBar::ms_classInfo.GetClassName()),
+            widgets::ShortcutMenuBar);
+        for (const auto& item : menu_bar->item_map()) {
+            wxPrintf("%s (%s)\n", HandlerIDToConfigString(item.first), item.second->GetItemLabel());
+        }
+
+        [[maybe_unused]] const bool success = menu_bar->Destroy();
+        assert(success);
+        menu_bar = nullptr;
 
         console_mode = true;
         return true;
@@ -854,511 +823,6 @@ wxEvtHandler* wxvbamApp::GetJoyEventHandler() {
     }
 
     return nullptr;
-}
-
-MainFrame::MainFrame()
-    : wxFrame(),
-      paused(false),
-      menus_opened(0),
-      dialog_opened(0),
-      focused(false),
-#ifndef NO_LINK
-      gba_link_observer_(config::OptionID::kGBALinkHost,
-                         std::bind(&MainFrame::EnableNetworkMenu, this)),
-#endif
-      keep_on_top_styler_(this),
-      status_bar_observer_(config::OptionID::kGenStatusBar,
-                           std::bind(&MainFrame::OnStatusBarChanged, this)) {
-}
-
-MainFrame::~MainFrame() {
-#ifndef NO_LINK
-    CloseLink();
-#endif
-}
-
-void MainFrame::SetStatusBar(wxStatusBar* menu_bar) {
-    wxFrame::SetStatusBar(menu_bar);
-    // This will take care of hiding the menu bar at startup, if needed.
-    menu_bar->Show(OPTION(kGenStatusBar));
-}
-
-void MainFrame::OnStatusBarChanged() {
-    GetStatusBar()->Show(OPTION(kGenStatusBar));
-    SendSizeEvent();
-    panel->AdjustSize(false);
-    SendSizeEvent();
-}
-
-BEGIN_EVENT_TABLE(MainFrame, wxFrame)
-#include "wx/cmd-evtable.h"
-EVT_CONTEXT_MENU(MainFrame::OnMenu)
-// this is the main window focus?  Or EVT_SET_FOCUS/EVT_KILL_FOCUS?
-EVT_ACTIVATE(MainFrame::OnActivate)
-// requires DragAcceptFiles(true); even then may not do anything
-EVT_DROP_FILES(MainFrame::OnDropFile)
-
-// for window geometry
-EVT_MOVE(MainFrame::OnMove)
-EVT_MOVE_START(MainFrame::OnMoveStart)
-EVT_MOVE_END(MainFrame::OnMoveEnd)
-EVT_SIZE(MainFrame::OnSize)
-
-// For tracking menubar state.
-EVT_MENU_OPEN(MainFrame::MenuPopped)
-EVT_MENU_CLOSE(MainFrame::MenuPopped)
-EVT_MENU_HIGHLIGHT_ALL(MainFrame::MenuPopped)
-
-END_EVENT_TABLE()
-
-void MainFrame::OnActivate(wxActivateEvent& event)
-{
-    focused = event.GetActive();
-
-    if (panel && focused)
-        panel->SetFocus();
-
-    if (OPTION(kPrefPauseWhenInactive)) {
-        if (panel && focused && !paused) {
-            panel->Resume();
-        }
-        else if (panel && !focused) {
-            panel->Pause();
-        }
-    }
-}
-
-void MainFrame::OnDropFile(wxDropFilesEvent& event)
-{
-    wxString* f = event.GetFiles();
-    // ignore all but last
-    wxGetApp().pending_load = f[event.GetNumberOfFiles() - 1];
-}
-
-void MainFrame::OnMenu(wxContextMenuEvent& event)
-{
-    if (IsFullScreen() && ctx_menu) {
-        wxPoint p(event.GetPosition());
-#if 0 // wx actually recommends ignoring the position
-
-        if (p != wxDefaultPosition)
-            p = ScreenToClient(p);
-
-#endif
-        PopupMenu(ctx_menu, p);
-    }
-}
-
-void MainFrame::OnMove(wxMoveEvent&) {
-    if (!init_complete_) {
-        return;
-    }
-    if (!IsFullScreen() && !IsMaximized()) {
-        const wxPoint window_pos = GetScreenPosition();
-        OPTION(kGeomWindowX) = window_pos.x;
-        OPTION(kGeomWindowY) = window_pos.y;
-    }
-}
-
-// On Windows pause sound when moving and resizing the window to prevent dsound
-// from looping.
-void MainFrame::OnMoveStart(wxMoveEvent&) {
-#ifdef __WXMSW__
-    soundPause();
-#endif
-}
-
-void MainFrame::OnMoveEnd(wxMoveEvent&) {
-#ifdef __WXMSW__
-    soundResume();
-#endif
-}
-
-void MainFrame::OnSize(wxSizeEvent& event)
-{
-    wxFrame::OnSize(event);
-    if (!init_complete_) {
-        return;
-    }
-    const wxRect window_rect = GetRect();
-    const wxPoint window_pos = GetScreenPosition();
-
-    if (!IsFullScreen() && !IsMaximized()) {
-        if (window_rect.GetHeight() > 0 && window_rect.GetWidth() > 0) {
-            OPTION(kGeomWindowHeight) = window_rect.GetHeight();
-            OPTION(kGeomWindowWidth) = window_rect.GetWidth();
-        }
-        OPTION(kGeomWindowX) = window_pos.x;
-        OPTION(kGeomWindowY) = window_pos.y;
-    }
-
-    OPTION(kGeomIsMaximized) = IsMaximized();
-    OPTION(kGeomFullScreen) = IsFullScreen();
-}
-
-int MainFrame::FilterEvent(wxEvent& event) {
-    if (menus_opened || dialog_opened) {
-        return wxEventFilter::Event_Skip;
-    }
-
-    if (event.GetEventType() != VBAM_EVT_USER_INPUT_DOWN) {
-        // We only treat "VBAM_EVT_USER_INPUT_DOWN" events here.
-        return wxEventFilter::Event_Skip;
-    }
-
-    const widgets::UserInputEvent& user_input_event = static_cast<widgets::UserInputEvent&>(event);
-    nonstd::optional<config::Command> command =
-        wxGetApp().bindings()->CommandForInput(user_input_event.input());
-    if (command == nonstd::nullopt) {
-        // No associated command found.
-        return wxEventFilter::Event_Skip;
-    }
-
-    if (!command->is_shortcut()) {
-        return wxEventFilter::Event_Skip;
-    }
-
-    wxCommandEvent command_event(wxEVT_COMMAND_MENU_SELECTED, command->shortcut().id());
-    command_event.SetEventObject(this);
-    this->GetEventHandler()->ProcessEvent(command_event);
-    return wxEventFilter::Event_Processed;
-}
-
-wxString MainFrame::GetGamePath(wxString path)
-{
-    wxString game_path = path;
-
-    if (game_path.size()) {
-        game_path = wxGetApp().GetAbsolutePath(game_path);
-    } else {
-        game_path = panel->game_dir();
-        wxFileName::Mkdir(game_path, 0777, wxPATH_MKDIR_FULL);
-    }
-
-    if (!wxFileName::DirExists(game_path))
-        game_path = wxFileName::GetCwd();
-
-    if (!wxIsWritable(game_path))
-    {
-        game_path = wxGetApp().GetAbsolutePath(wxString((get_xdg_user_data_home() + kDotDir).c_str(), wxConvLibc));
-        wxFileName::Mkdir(game_path, 0777, wxPATH_MKDIR_FULL);
-    }
-
-    return game_path;
-}
-
-void MainFrame::enable_menus()
-{
-    for (int i = 0; i < ncmds; i++)
-        if (cmdtab[i].mask_flags && cmdtab[i].mi)
-            cmdtab[i].mi->Enable((cmdtab[i].mask_flags & cmd_enable) != 0);
-
-    if (cmd_enable & CMDEN_SAVST)
-        for (int i = 0; i < 10; i++)
-            if (loadst_mi[i])
-                loadst_mi[i]->Enable(state_ts[i].IsValid());
-}
-
-void MainFrame::update_state_ts(bool force)
-{
-    bool any_states = false;
-
-    for (int i = 0; i < 10; i++) {
-        if (force)
-            state_ts[i] = wxInvalidDateTime;
-
-        if (panel->game_type() != IMAGE_UNKNOWN) {
-            wxString fn;
-            fn.Printf(SAVESLOT_FMT, panel->game_name().wc_str(), i + 1);
-            wxFileName fp(panel->state_dir(), fn);
-            wxDateTime ts; // = wxInvalidDateTime
-
-            if (fp.IsFileReadable()) {
-                ts = fp.GetModificationTime();
-                any_states = true;
-            }
-
-            // if(ts != state_ts[i] || (force && !ts.IsValid())) {
-            // to prevent assertions (stupid wx):
-            if (ts.IsValid() != state_ts[i].IsValid() || (ts.IsValid() && ts != state_ts[i]) || (force && !ts.IsValid())) {
-                // wx has no easy way of doing the -- bit independent
-                // of locale
-                // so use a real date and substitute all digits
-                wxDateTime fts = ts.IsValid() ? ts : wxDateTime::Now();
-                wxString df = fts.Format(wxT("0&0 %x %X"));
-
-                if (!ts.IsValid())
-                    for (size_t j = 0; j < df.size(); j++)
-                        if (wxIsdigit(df[j]))
-                            df[j] = wxT('-');
-
-                df[0] = i == 9 ? wxT('1') : wxT(' ');
-                df[2] = wxT('0') + (i + 1) % 10;
-
-                if (loadst_mi[i]) {
-                    wxString lab = loadst_mi[i]->GetItemLabel();
-                    size_t tab = lab.find(wxT('\t')), dflen = df.size();
-
-                    if (tab != wxString::npos)
-                        df.append(lab.substr(tab));
-
-                    loadst_mi[i]->SetItemLabel(df);
-                    loadst_mi[i]->Enable(ts.IsValid());
-
-                    if (tab != wxString::npos)
-                        df.resize(dflen);
-                }
-
-                if (savest_mi[i]) {
-                    wxString lab = savest_mi[i]->GetItemLabel();
-                    size_t tab = lab.find(wxT('\t'));
-
-                    if (tab != wxString::npos)
-                        df.append(lab.substr(tab));
-
-                    savest_mi[i]->SetItemLabel(df);
-                }
-            }
-
-            state_ts[i] = ts;
-        }
-    }
-
-    int cmd_flg = any_states ? CMDEN_SAVST : 0;
-
-    if ((cmd_enable & CMDEN_SAVST) != cmd_flg) {
-        cmd_enable = (cmd_enable & ~CMDEN_SAVST) | cmd_flg;
-        enable_menus();
-    }
-}
-
-int MainFrame::oldest_state_slot()
-{
-    wxDateTime ot;
-    int os = -1;
-
-    for (int i = 0; i < 10; i++) {
-        if (!state_ts[i].IsValid())
-            return i + 1;
-
-        if (os < 0 || state_ts[i] < ot) {
-            os = i;
-            ot = state_ts[i];
-        }
-    }
-
-    return os + 1;
-}
-
-int MainFrame::newest_state_slot()
-{
-    wxDateTime nt;
-    int ns = -1;
-
-    for (int i = 0; i < 10; i++) {
-        if (!state_ts[i].IsValid())
-            continue;
-
-        if (ns < 0 || state_ts[i] > nt) {
-            ns = i;
-            nt = state_ts[i];
-        }
-    }
-
-    return ns + 1;
-}
-
-void MainFrame::ResetRecentAccelerators() {
-    for (int i = wxID_FILE1; i <= wxID_FILE10; i++) {
-        wxMenuItem* menu_item = recent->FindItem(i);
-        if (!menu_item) {
-            break;
-        }
-        ResetMenuItemAccelerator(menu_item);
-    }
-}
-
-void MainFrame::ResetMenuAccelerators() {
-    for (int i = 0; i < ncmds; i++) {
-        if (!cmdtab[i].mi) {
-            continue;
-        }
-        ResetMenuItemAccelerator(cmdtab[i].mi);
-    }
-    ResetRecentAccelerators();
-}
-
-void MainFrame::MenuPopped(wxMenuEvent& evt)
-{
-    // We consider the menu closed when the main menubar or system menu is closed, not any submenus.
-    // On Windows nullptr is the system menu.
-    if (evt.GetEventType() == wxEVT_MENU_CLOSE && (evt.GetMenu() == nullptr || evt.GetMenu()->GetMenuBar() == GetMenuBar()))
-        SetMenusOpened(false);
-    else
-        SetMenusOpened(true);
-
-    evt.Skip();
-}
-
-// On Windows, opening the menubar will stop the app, but DirectSound will
-// loop, so we pause audio here.
-void MainFrame::SetMenusOpened(bool state)
-{
-    menus_opened = state;
-
-#ifdef __WXMSW__
-    if (menus_opened)
-        soundPause();
-    else if (!paused)
-        soundResume();
-#endif
-}
-
-// ShowModal that also disables emulator loop
-// uses dialog_opened as a nesting counter
-int MainFrame::ShowModal(wxDialog* dlg)
-{
-    dlg->SetWindowStyle(dlg->GetWindowStyle() | wxCAPTION | wxRESIZE_BORDER);
-
-    CheckPointer(dlg);
-    StartModal();
-    int ret = dlg->ShowModal();
-    StopModal();
-    return ret;
-}
-
-void MainFrame::StartModal()
-{
-    // workaround for lack of wxGTK mouse motion events: unblank
-    // pointer when dialog popped up
-    // it will auto-hide again once game resumes
-    panel->ShowPointer();
-    //panel->Pause();
-    ++dialog_opened;
-}
-
-void MainFrame::StopModal()
-{
-    if (!dialog_opened) // technically an error in the caller
-        return;
-
-    --dialog_opened;
-
-    if (!IsPaused())
-        panel->Resume();
-}
-
-#ifndef NO_LINK
-
-LinkMode MainFrame::GetConfiguredLinkMode()
-{
-    switch (gopts.gba_link_type) {
-    case 0:
-        return LINK_DISCONNECTED;
-        break;
-
-    case 1:
-        if (OPTION(kGBALinkProto))
-                return LINK_CABLE_IPC;
-        else
-            return LINK_CABLE_SOCKET;
-
-        break;
-
-    case 2:
-        if (OPTION(kGBALinkProto))
-            return LINK_RFU_IPC;
-        else
-            return LINK_RFU_SOCKET;
-
-        break;
-
-    case 3:
-        return LINK_GAMECUBE_DOLPHIN;
-        break;
-
-    case 4:
-        if (OPTION(kGBALinkProto))
-            return LINK_GAMEBOY_IPC;
-        else
-            return LINK_GAMEBOY_SOCKET;
-
-        break;
-
-    default:
-        return LINK_DISCONNECTED;
-        break;
-    }
-}
-
-#endif  // NO_LINK
-
-void MainFrame::IdentifyRom()
-{
-    if (!panel->rom_name.empty())
-        return;
-
-    panel->rom_name = panel->loaded_game.GetFullName();
-    wxString name;
-    wxString scene_rls;
-    wxString scene_name;
-    wxString rom_crc32_str;
-    rom_crc32_str.Printf(wxT("%08X"), panel->rom_crc32);
-
-    if (wxGetApp().rom_database_nointro.FileExists()) {
-        wxFileInputStream input(wxGetApp().rom_database_nointro.GetFullPath());
-        wxTextInputStream text(input, wxT("\x09"), wxConvUTF8);
-
-        while (input.IsOk() && !input.Eof()) {
-            wxString line = text.ReadLine();
-
-            if (line.Contains(wxT("<releaseNumber>"))) {
-                scene_rls = line.AfterFirst('>').BeforeLast('<');
-            }
-
-            if (line.Contains(wxT("romCRC ")) && line.Contains(rom_crc32_str)) {
-                panel->rom_scene_rls = scene_rls;
-                break;
-            }
-        }
-    }
-
-    if (wxGetApp().rom_database_scene.FileExists()) {
-        wxFileInputStream input(wxGetApp().rom_database_scene.GetFullPath());
-        wxTextInputStream text(input, wxT("\x09"), wxConvUTF8);
-
-        while (input.IsOk() && !input.Eof()) {
-            wxString line = text.ReadLine();
-
-            if (line.StartsWith(wxT("\tname"))) {
-                scene_name = line.AfterLast(' ').BeforeLast('"');
-            }
-
-            if (line.StartsWith(wxT("\trom")) && line.Contains(wxT("crc ") + rom_crc32_str)) {
-                panel->rom_scene_rls_name = scene_name;
-                panel->rom_name = scene_name;
-                break;
-            }
-        }
-    }
-
-    if (wxGetApp().rom_database.FileExists()) {
-        wxFileInputStream input(wxGetApp().rom_database.GetFullPath());
-        wxTextInputStream text(input, wxT("\x09"), wxConvUTF8);
-
-        while (input.IsOk() && !input.Eof()) {
-            wxString line = text.ReadLine();
-
-            if (line.StartsWith(wxT("\tname"))) {
-                name = line.AfterFirst('"').BeforeLast('"');
-            }
-
-            if (line.StartsWith(wxT("\trom")) && line.Contains(wxT("crc ") + rom_crc32_str)) {
-                panel->rom_name = name;
-                break;
-            }
-        }
-    }
 }
 
 // global event filter

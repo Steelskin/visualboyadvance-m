@@ -5,30 +5,7 @@
 #pragma hdrstop
 #endif
 
-#include <cstdint>
-
-#include <wx/wx.h>
-
-// The following are not pulled in by wx.h
-
-// for some reason, mingw32 wx.h doesn't pull in listctrl by default
-#include <wx/config.h>
-#include <wx/display.h>
-#include <wx/fileconf.h>
-#include <wx/listctrl.h>
-#include <wx/stdpaths.h>
-#include <wx/treectrl.h>
 #include <wx/xrc/xmlres.h>
-// filehistory.h is separate only in 2.9+
-#include <wx/docview.h>
-
-// This is necessary to build with gcc on Fedora.
-using std::uint8_t;
-using std::uint16_t;
-using std::uint32_t;
-using std::int8_t;
-using std::int16_t;
-using std::int32_t;
 
 #ifndef NO_OGL
 // glcanvas must be included before SFML for MacOSX
@@ -42,20 +19,6 @@ using std::int32_t;
 #undef BadRequest
 #endif
 #endif
-
-// compatibility with wx-2.9
-// The only reason I use wxTRANSLATE at all is to get wxT as a side effect.
-#if wxCHECK_VERSION(2, 9, 0)
-#undef wxTRANSLATE
-#define wxTRANSLATE wxT
-#endif
-
-// wxGTK (2.8.8+, at least) doesn't store the actual menu item text in m_text.
-// This breaks GetText, SetText, GetAccel, SetAccel, and GetLabel;
-// GetItemLabel() works, though.
-// GetText, SetText, and GetLabel are deprecated, so that's not a problem
-// GetAccel is inefficent anyway (often I don't want to convert to wxAccEnt)
-// This is a working replacement for SetAccel, at least.
 
 // wxrc helpers (for dynamic strings instead of constant)
 #define XRCID_D(str) wxXmlResource::GetXRCID(str)

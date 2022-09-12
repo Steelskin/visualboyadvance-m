@@ -156,11 +156,9 @@ std::array<Option, kNbOptions>& Option::All() {
 
         /// GBA
         bool gba_lcd_filter = false;
-#ifndef NO_LINK
         bool link_auto = false;
         bool link_hacks = true;
         bool link_proto = false;
-#endif
         wxString gba_rom_dir;
 
         /// Core
@@ -265,7 +263,6 @@ std::array<Option, kNbOptions>& Option::All() {
         /// GBA
         Option(OptionID::kGBABiosFile, &gopts.gba_bios),
         Option(OptionID::kGBALCDFilter, &g_owned_opts.gba_lcd_filter),
-#ifndef NO_LINK
         Option(OptionID::kGBALinkAuto, &g_owned_opts.link_auto),
         Option(OptionID::kGBALinkFast, &g_owned_opts.link_hacks),
         Option(OptionID::kGBALinkHost, &gopts.link_host),
@@ -274,7 +271,6 @@ std::array<Option, kNbOptions>& Option::All() {
         Option(OptionID::kGBALinkProto, &g_owned_opts.link_proto),
         Option(OptionID::kGBALinkTimeout, &gopts.link_timeout, 0, 9999999),
         Option(OptionID::kGBALinkType, &gopts.gba_link_type, 0, 5),
-#endif
         Option(OptionID::kGBAROMDir, &g_owned_opts.gba_rom_dir),
 
         /// General
@@ -314,9 +310,7 @@ std::array<Option, kNbOptions>& Option::All() {
         Option(OptionID::kPrefGBPrinter, &coreOptions.winGbPrinterEnabled, 0, 1),
         Option(OptionID::kPrefGDBBreakOnLoad, &g_owned_opts.gdb_break_on_load),
         Option(OptionID::kPrefGDBPort, &gopts.gdb_port, 0, 65535),
-#ifndef NO_LINK
         Option(OptionID::kPrefLinkNumPlayers, &gopts.link_num_players, 2, 4),
-#endif
         Option(OptionID::kPrefMaxScale, &gopts.max_scale, 0, 100),
         Option(OptionID::kPrefPauseWhenInactive, &g_owned_opts.pause_when_inactive),
         Option(OptionID::kPrefRTCEnabled, &coreOptions.rtcEnabled, 0, 1),
@@ -419,7 +413,6 @@ const std::array<OptionData, kNbOptions + 1> kAllOptionsData = {
         "GBALcdFilter",
         _("Apply LCD filter, if enabled"),
     },
-#ifndef NO_LINK
     OptionData{
         "GBA/LinkAuto",
         "LinkAuto",
@@ -436,7 +429,6 @@ const std::array<OptionData, kNbOptions + 1> kAllOptionsData = {
     OptionData{"GBA/LinkProto", "LinkProto", _("Default network protocol")},
     OptionData{"GBA/LinkTimeout", "LinkTimeout", _("Link timeout (ms)")},
     OptionData{"GBA/LinkType", "LinkType", _("Link cable type")},
-#endif
     OptionData{"GBA/ROMDir", "", _("Directory to look for ROM files")},
 
     /// General
@@ -503,9 +495,7 @@ const std::array<OptionData, kNbOptions + 1> kAllOptionsData = {
     OptionData{"preferences/gdbBreakOnLoad", "DebugGDBBreakOnLoad",
                _("Break into GDB after loading the game.")},
     OptionData{"preferences/gdbPort", "DebugGDBPort", _("Port to connect GDB to")},
-#ifndef NO_LINK
     OptionData{"preferences/LinkNumPlayers", "", _("Number of players in network")},
-#endif
     OptionData{"preferences/maxScale", "", _("Maximum scale factor (0 = no limit)")},
     OptionData{"preferences/pauseWhenInactive", "PauseWhenInactive",
                _("Pause game when main window loses focus")},
@@ -531,7 +521,7 @@ const std::array<OptionData, kNbOptions + 1> kAllOptionsData = {
     OptionData{"preferences/speedupThrottleFrameSkip", "",
                _("Use frame skip for speedup throttle")},
     OptionData{"preferences/useBiosGB", "BootRomGB", _("Use the specified BIOS file for Game Boy")},
-    OptionData{"preferences/useBiosGBA", "BootRomEn", _("Use the specified BIOS file")},
+    OptionData{"preferences/useBiosGBA", "BootRomGba", _("Use the specified BIOS file")},
     OptionData{"preferences/useBiosGBC", "BootRomGBC",
                _("Use the specified BIOS file for Game Boy Color")},
     OptionData{"preferences/vsync", "VSync", _("Wait for vertical sync")},

@@ -8,18 +8,19 @@
 
 #include <wx/string.h>
 
-#include "wx/config/bindings.h"
 #include "wx/config/command.h"
 #include "wx/config/user-input.h"
 
 namespace config {
+
+class ConfigProvider;
 
 // Tracks in-game input and computes the joypad value used to send control input
 // data to the emulator. This class should be kept as a singleton owned by the
 // application.
 class EmulatedGamepad final {
 public:
-    explicit EmulatedGamepad(const BindingsProvider bindings_provider);
+    explicit EmulatedGamepad(ConfigProvider* const config_provider);
     ~EmulatedGamepad() = default;
 
     // Disable copy constructor and assignment operator.
@@ -39,10 +40,8 @@ public:
 private:
     std::unordered_map<GameCommand, std::unordered_set<UserInput>> active_controls_;
     std::array<uint32_t, kNbJoypads> joypads_;
-    const BindingsProvider bindings_provider_;
+    ConfigProvider* const config_provider_;
 };
-
-using EmulatedGamepadProvider = std::function<EmulatedGamepad*()>;
 
 }  // namespace config
 

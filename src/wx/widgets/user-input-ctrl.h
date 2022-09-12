@@ -90,7 +90,7 @@ private:
     wxObject* DoCreateResource() override;
     bool CanHandle(wxXmlNode* node) override;
 
-    wxDECLARE_DYNAMIC_CLASS(wxTextCtrlXmlHandler);
+    wxDECLARE_DYNAMIC_CLASS(UserInputCtrlXmlHandler);
 };
 
 }  // namespace widgets

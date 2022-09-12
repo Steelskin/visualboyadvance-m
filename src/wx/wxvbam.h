@@ -1,38 +1,40 @@
 #ifndef VBAM_WX_WXVBAM_H_
 #define VBAM_WX_WXVBAM_H_
 
-#include <list>
+#include <cstdio>
+#include <ctime>
+#include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <typeinfo>
-#include <iostream>
-#include <stdio.h>
-#include <time.h>
-#include <wx/log.h>
-#include <wx/propdlg.h>
+
+#include <wx/app.h>
 #include <wx/datetime.h>
+#include <wx/dcclient.h>
+#include <wx/fileconf.h>
+#include <wx/log.h>
+#include <wx/panel.h>
+#include <wx/propdlg.h>
 
 #include "core/base/system.h"
-#include "wx/config/bindings.h"
-#include "wx/config/emulated-gamepad.h"
+#include "wx/config/config-provider.h"
 #include "wx/config/option-observer.h"
 #include "wx/config/option.h"
-#include "wx/dialogs/base-dialog.h"
 #include "wx/widgets/dpi-support.h"
 #include "wx/widgets/keep-on-top-styler.h"
 #include "wx/widgets/sdl-poller.h"
 #include "wx/widgets/user-input-event.h"
-#include "wx/widgets/wxmisc.h"
-#include "wx/wxhead.h"
-
-#ifndef NO_LINK
-#include "core/gba/gbaLink.h"
-#endif
 
 #ifndef NO_FFMPEG
 #include "components/av_recording/av_recording.h"
 #endif
 
-#include "wx/wxlogdebug.h"
+// Forward declarations.
+class MainFrame;
+
+namespace config {
+class FileHistory;
+}
 
 template <typename T>
 void CheckPointer(T pointer)
@@ -57,9 +59,7 @@ inline std::string ToString(const wxChar* aString)
     return std::string(wxString(aString).mb_str(wxConvUTF8));
 }
 
-class MainFrame;
-
-class wxvbamApp final : public wxApp {
+class wxvbamApp final : public wxApp, public config::ConfigProvider {
 public:
     wxvbamApp();
 
@@ -70,8 +70,10 @@ public:
     bool OnCmdLineError(wxCmdLineParser&) final;
     void OnInitCmdLine(wxCmdLineParser&) final;
     bool OnCmdLineParsed(wxCmdLineParser&) final;
+
     // without this, global accels don't always work
     int FilterEvent(wxEvent&) final;
+
     // Handle most exceptions
     bool OnExceptionInMainLoop() override {
         try {
@@ -121,9 +123,10 @@ public:
     // there's no way to retrieve "current" locale, so this is public
     wxLocale locale;
 
-    // Accessors for configuration data.
-    config::Bindings* bindings() { return &bindings_; }
-    config::EmulatedGamepad* emulated_gamepad() { return &emulated_gamepad_; }
+    // config::ConfigProvider implementation
+    config::Bindings* bindings() override { return bindings_.get(); }
+    config::EmulatedGamepad* emulated_gamepad() override { return emulated_gamepad_.get(); }
+    config::FileHistory* file_history() override { return file_history_.get(); }
 
     ~wxvbamApp() override;
 
@@ -136,8 +139,9 @@ private:
     // Returns the currently active event handler to use for user input events.
     wxEvtHandler* GetJoyEventHandler();
 
-    config::Bindings bindings_;
-    config::EmulatedGamepad emulated_gamepad_;
+    std::unique_ptr<config::Bindings> bindings_;
+    std::unique_ptr<config::EmulatedGamepad> emulated_gamepad_;
+    std::unique_ptr<config::FileHistory> file_history_;
 
     wxPathList config_path;
     char* home = nullptr;
@@ -150,248 +154,10 @@ private:
 
 DECLARE_APP(wxvbamApp);
 
-// menu event handlers are declared with these macros in mainwind.cpp
-// and mainwind-handlers.h, mainwind-cmd.cpp, and mainwind-evt.cpp are
-// auto-generated from them
-#define EVT_HANDLER(n, x) void MainFrame::On##n(wxCommandEvent& WXUNUSED(event))
-// some commands are masked under some conditions
-#define EVT_HANDLER_MASK(n, x, m)                          \
-    void MainFrame::On##n(wxCommandEvent& WXUNUSED(event)) \
-    {                                                      \
-        if (!(cmd_enable & (m)))                           \
-            return;                                        \
-        Do##n();                                           \
-    }                                                      \
-    void MainFrame::Do##n()
-
 // here are those conditions
-enum { CMDEN_GB = (1 << 0), // GB ROM loaded
-    CMDEN_GBA = (1 << 1), // GBA ROM loaded
-    // the rest imply the above, unless:
-    //   _ANY -> does not imply either
-    //   _GBA -> only implies GBA
-    CMDEN_REWIND = (1 << 2), // rewind states available
-    CMDEN_SREC = (1 << 3), // sound recording in progress
-    CMDEN_NSREC = (1 << 4), // no sound recording
-    CMDEN_VREC = (1 << 5), // video recording
-    CMDEN_NVREC = (1 << 6), // no video recording
-    CMDEN_GREC = (1 << 7), // game recording
-    CMDEN_NGREC = (1 << 8), // no game recording
-    CMDEN_GPLAY = (1 << 9), // game playback
-    CMDEN_NGPLAY = (1 << 10), // no game playback
-    CMDEN_SAVST = (1 << 11), // any save states
-    CMDEN_GDB = (1 << 12), // gdb connected
-    CMDEN_NGDB_GBA = (1 << 13), // gdb not connected
-    CMDEN_NGDB_ANY = (1 << 14), // gdb not connected
-    CMDEN_NREC_ANY = (1 << 15), // not a/v recording
-    CMDEN_LINK_ANY = (1 << 16), // link enabled
-
-    CMDEN_NEVER = (1 << 31) // never (for NOOP)
-};
-#define ONLOAD_CMDEN (CMDEN_NSREC | CMDEN_NVREC | CMDEN_NGREC | CMDEN_NGPLAY)
-#define UNLOAD_CMDEN_KEEP (CMDEN_NGDB_ANY | CMDEN_NREC_ANY | CMDEN_LINK_ANY)
-
-struct checkable_mi_t {
-    int cmd;
-    wxMenuItem* mi;
-    int mask, val;
-    bool initialized = false;
-};
-
-// wxArray is only for small types
-typedef std::vector<checkable_mi_t> checkable_mi_array_t;
-
-typedef std::list<wxDialog*> dialog_list_t;
-
-class GameArea;
-
-class LogDialog;
-
-class JoystickPoller;
 
 // true if pause should happen at next frame
 extern bool pause_next;
-
-class MainFrame : public wxFrame {
-public:
-    MainFrame();
-    ~MainFrame() override;
-
-    bool BindControls();
-    void MenuOptionIntMask(const wxString& menuName, int field, int mask);
-    void MenuOptionIntRadioValue(const wxString& menuName, int field, int mask);
-    void MenuOptionBool(const wxString& menuName, bool field);
-    void GetMenuOptionConfig(const wxString& menu_name,
-                             const config::OptionID& option_id);
-    void GetMenuOptionInt(const wxString& menuName, int* field, int mask);
-    void GetMenuOptionBool(const wxString& menuName, bool* field);
-    void SetMenuOption(const wxString& menuName, bool value);
-
-    int FilterEvent(wxEvent& event);
-
-    GameArea* GetPanel()
-    {
-        return panel;
-    }
-
-    wxString GetGamePath(wxString path);
-
-    // wxMSW pauses the game for menu popups and modal dialogs, but wxGTK
-    // does not.  It's probably desirable to pause the game.  To do this for
-    // dialogs, use this function instead of dlg->ShowModal()
-    int ShowModal(wxDialog* dlg);
-    // and here are the wrapper functions for use when ShowModal() isn't
-    // possible
-    void StartModal();
-    void StopModal();
-    // however, adding a handler for open/close menu to do the same is unsafe.
-    // there is no guarantee every show will be matched by a hide.
-    void MenuPopped(wxMenuEvent& evt);
-
-    // flags for enabling commands
-    int cmd_enable;
-
-    // adjust menus based on current cmd_enable
-    void enable_menus();
-#ifndef NO_LINK
-    void EnableNetworkMenu();
-#endif
-
-    // adjust menus based on available save game states
-    void update_state_ts(bool force = false);
-
-    // retrieve oldest/newest slot
-    // returns lowest-numbered slot on ties
-    int oldest_state_slot(); // or empty slot if available
-    int newest_state_slot(); // or 0 if none
-
-    // Resets the Recent menu accelerators. Needs to be called every time the
-    // Recent menu is updated.
-    void ResetRecentAccelerators();
-    // Resets all menu accelerators.
-    void ResetMenuAccelerators();
-
-    // 2.8 has no HasFocus(), and FindFocus() doesn't work right
-    bool HasFocus() const override { return focused; }
-
-#ifndef NO_LINK
-    // Returns the link mode to set according to the options
-    LinkMode GetConfiguredLinkMode();
-#endif
-
-    void IdentifyRom();
-
-    // Start GDB listener
-    void GDBBreak();
-
-    // The various viewer popups; these can be popped up as often as
-    // desired
-    void Disassemble();
-    void IOViewer();
-    void MapViewer();
-    void MemViewer();
-    void OAMViewer();
-    void PaletteViewer();
-    void TileViewer();
-
-    // since they will all have to be destroyed on game unload:
-    dialog_list_t popups;
-
-    // this won't actually be destroyed, but it needs to be tracked so only
-    // one is ever up and it needs to be pinged when new messages arrive
-    std::unique_ptr<LogDialog> logdlg;
-
-    // the cheat search dialog isn't destroyed or tracked, but it needs
-    // to be cleared between games
-    void ResetCheatSearch();
-
-    // call this to update the viewers once a frame:
-    void UpdateViewers();
-
-    virtual bool MenusOpened() { return menus_opened; }
-
-    virtual void SetMenusOpened(bool state);
-
-    virtual bool DialogOpened() { return dialog_opened != 0; }
-
-    bool IsPaused(bool incendental = false)
-    {
-        return (paused && !pause_next && !incendental) || dialog_opened;
-    }
-
-    // required for building from xrc
-    DECLARE_DYNAMIC_CLASS(MainFrame);
-    // required for event handling
-    DECLARE_EVENT_TABLE();
-
-protected:
-    virtual void BindAppIcon();
-
-private:
-    GameArea* panel;
-
-    bool paused, menus_opened;
-    int dialog_opened;
-
-    bool autoLoadMostRecent;
-    // copy of top-level menu bar as a context menu
-    wxMenu* ctx_menu;
-    // load/save states menu items
-    wxMenuItem* loadst_mi[10];
-    wxMenuItem* savest_mi[10];
-    wxDateTime state_ts[10];
-    // checkable menu items
-    checkable_mi_array_t checkable_mi;
-    // recent menu item accels
-    wxMenu* recent;
-    // quicker & more accurate than FindFocus() != NULL
-    bool focused;
-    // One-time toggle to indicate that this object is fully initialized. This
-    // used to filter events that are sent during initialization.
-    bool init_complete_ = false;
-#ifndef NO_LINK
-    const config::OptionsObserver gba_link_observer_;
-#endif
-    const widgets::KeepOnTopStyler keep_on_top_styler_;
-    const config::OptionsObserver status_bar_observer_;
-
-    // wxFrame override.
-    void SetStatusBar(wxStatusBar* menuBar) override;
-
-    // helper function for adding menu to accel editor
-    void add_menu_accels(wxTreeCtrl* tc, wxTreeItemId& parent, wxMenu* menu);
-
-    // For enabling / disabling the status bar.
-    void OnStatusBarChanged();
-    // for detecting window focus
-    void OnActivate(wxActivateEvent&);
-    // may work, may not...  if so, load dropped file
-    void OnDropFile(wxDropFilesEvent&);
-    // pop up menu in fullscreen mode
-    void OnMenu(wxContextMenuEvent&);
-    // window geometry
-    void OnMove(wxMoveEvent& event);
-    void OnMoveStart(wxMoveEvent& event);
-    void OnMoveEnd(wxMoveEvent& event);
-    void OnSize(wxSizeEvent& event);
-    // Load a named wxDialog from the XRC file
-    wxDialog* LoadXRCDialog(const char* name);
-
-#include "wx/cmdhandlers.h"
-};
-
-// a helper class to avoid forgetting StopModal()
-class ModalPause {
-public:
-    ModalPause()
-    {
-        wxGetApp().frame->StartModal();
-    }
-    ~ModalPause()
-    {
-        wxGetApp().frame->StopModal();
-    }
-};
 
 enum showspeed {
     // this order must match order of option enum and selector widget
@@ -587,14 +353,15 @@ protected:
     HMENU current_hmenu = nullptr;
 #endif
 
-    DECLARE_DYNAMIC_CLASS(GameArea)
-    DECLARE_EVENT_TABLE()
+    wxDECLARE_DYNAMIC_CLASS(GameArea);
+    wxDECLARE_EVENT_TABLE();
 
 private:
     void OnAudioRateChanged();
     void OnVolumeChanged(config::Option* option);
 
     bool schedule_audio_restart_ = false;
+    config::ConfigProvider* const config_provider_;
 
     const config::OptionsObserver render_observer_;
     const config::OptionsObserver scale_observer_;
@@ -609,25 +376,6 @@ private:
 
 // wxString version of OSD message
 void systemScreenMessage(const wxString& msg);
-
-// List of all commands with their descriptions
-// sorted by cmd field for binary searching
-// filled in by copy-events.cmake
-extern struct cmditem {
-    const wxString cmd, name;
-    int cmd_id;
-    int mask_flags; // if non-0, one of the flags must be turned on in win
-    // to enable this command
-    wxMenuItem* mi; // the menu item to invoke command, if present
-} cmdtab[];
-extern const int ncmds;
-
-// Initializer for struct cmditem
-cmditem new_cmditem(const wxString cmd = wxT(""), const wxString name = wxT(""),
-                    int cmd_id = 0, int mask_flags = 0, wxMenuItem* mi = NULL);
-
-// for binary search
-extern bool cmditem_lt(const struct cmditem& cmd1, const struct cmditem& cmd2);
 
 #include "wx/rpi.h"
 #include <wx/dynlib.h>
@@ -668,21 +416,6 @@ class DrawingPanel : public DrawingPanelBase, public wxPanel {
 public:
     DrawingPanel(wxWindow* parent, int _width, int _height);
 };
-
-class LogDialog : public dialogs::BaseDialog {
-public:
-    LogDialog();
-    void Update();
-
-private:
-    wxTextCtrl* log;
-    void Save(wxCommandEvent& ev);
-    void Clear(wxCommandEvent& ev);
-
-    DECLARE_EVENT_TABLE()
-};
-
-#include "wx/opts.h"
 
 #if defined(VBAM_ENABLE_DEBUGGER)
 extern bool debugger;

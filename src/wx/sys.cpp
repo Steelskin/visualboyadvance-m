@@ -1,18 +1,29 @@
+#include "core/base/system.h"
+
 #include <algorithm>
 
+#include <wx/button.h>
+#include <wx/ctrlsub.h>
 #include <wx/ffile.h>
+#include <wx/filedlg.h>
 #include <wx/generic/prntdlgg.h>
 #include <wx/print.h>
 #include <wx/printdlg.h>
+
 #include <SDL.h>
 
 #include "core/base/image_util.h"
 #include "core/gb/gbGlobals.h"
 #include "core/gba/gbaGlobals.h"
 #include "core/gba/gbaSound.h"
+#include "widgets/shortcut-menu-item.h"
 #include "wx/audio/audio.h"
 #include "wx/config/emulated-gamepad.h"
 #include "wx/config/option-proxy.h"
+#include "wx/dialogs/log.h"
+#include "wx/main-frame.h"
+#include "wx/opts.h"
+#include "wx/wxhead.h"
 #include "wx/wxvbam.h"
 
 // These should probably be in vbamcore
@@ -235,8 +246,7 @@ void systemStartGameRecording(const wxString& fname, MVFormatID format)
     game_joypad = 0;
     game_recording = true;
     MainFrame* mf = wxGetApp().frame;
-    mf->cmd_enable &= ~(CMDEN_NGREC | CMDEN_GPLAY | CMDEN_NGPLAY);
-    mf->cmd_enable |= CMDEN_GREC;
+    mf->cmd_enable_ |= widgets::CMDEN_GREC;
     mf->enable_menus();
 }
 
@@ -250,8 +260,7 @@ void systemStopGameRecording()
 
     game_recording = false;
     MainFrame* mf = wxGetApp().frame;
-    mf->cmd_enable &= ~CMDEN_GREC;
-    mf->cmd_enable |= CMDEN_NGREC | CMDEN_NGPLAY;
+    mf->cmd_enable_ &= ~widgets::CMDEN_GREC;
     mf->enable_menus();
 }
 
@@ -310,8 +319,7 @@ void systemStartGamePlayback(const wxString& fname, MVFormatID format)
     game_joypad = 0;
     game_playback = true;
     MainFrame* mf = wxGetApp().frame;
-    mf->cmd_enable &= ~(CMDEN_NGREC | CMDEN_GREC | CMDEN_NGPLAY);
-    mf->cmd_enable |= CMDEN_GPLAY;
+    mf->cmd_enable_ |= widgets::CMDEN_GPLAY;
     mf->enable_menus();
 }
 
@@ -323,8 +331,7 @@ void systemStopGamePlayback()
     game_file.Close();
     game_playback = false;
     MainFrame* mf = wxGetApp().frame;
-    mf->cmd_enable &= ~CMDEN_GPLAY;
-    mf->cmd_enable |= CMDEN_NGREC | CMDEN_NGPLAY;
+    mf->cmd_enable_ &= ~widgets::CMDEN_GPLAY;
     mf->enable_menus();
 }
 
@@ -1040,7 +1047,7 @@ void systemGbPrint(uint8_t* data, int len, int pages, int feed, int pal, int con
 {
     (void)pages; // unused params
     (void)cont; // unused params
-    ModalPause mp; // this might take a while, so signal a pause
+    ModalPause mp(wxGetApp().frame); // this might take a while, so signal a pause
     GameArea* panel = wxGetApp().frame->GetPanel();
     static uint16_t* accum_prdata;
     static int accum_prdata_len = 0, accum_prdata_size = 0;
@@ -1427,7 +1434,7 @@ void log(const char* defaultMsg, ...)
     wxGetApp().log.append(msg);
 
     if (wxGetApp().IsMainLoopRunning()) {
-        LogDialog* d = wxGetApp().frame->logdlg.get();
+        dialogs::LogDialog* d = wxGetApp().frame->logdlg.get();
 
         if (d && d->IsShown()) {
             d->Update();

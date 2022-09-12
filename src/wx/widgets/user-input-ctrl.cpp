@@ -115,7 +115,7 @@ UserInputCtrlXmlHandler::UserInputCtrlXmlHandler() : wxXmlResourceHandler() {
 wxObject* UserInputCtrlXmlHandler::DoCreateResource() {
     XRC_MAKE_INSTANCE(control, UserInputCtrl)
 
-    control->Create(m_parentAsWindow, GetID(), GetText("value"), GetPosition(), GetSize(),
+    control->Create(GetParentAsWindow(), GetID(), GetText("value"), GetPosition(), GetSize(),
                     GetStyle() | wxTE_PROCESS_ENTER | wxTE_PROCESS_TAB, GetName());
     SetupWindow(control);
 

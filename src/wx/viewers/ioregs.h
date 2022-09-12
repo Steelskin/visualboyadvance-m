@@ -1,3 +1,9 @@
+#if defined(wxTRANSLATE)
+#undef wxTRANSLATE
+#endif
+
+#define wxTRANSLATE _
+
 // this is essentially a copy of ../win32/IOViewRegisters.h using translatable
 // strings and more consts
 struct IOData {

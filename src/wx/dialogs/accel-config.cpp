@@ -5,14 +5,19 @@
 #include <wx/listbox.h>
 #include <wx/menu.h>
 #include <wx/msgdlg.h>
+#include <wx/treebase.h>
 
 #include "wx/config/bindings.h"
 #include "wx/config/command.h"
+#include "wx/config/config-provider.h"
+#include "wx/config/handler-id.h"
 #include "wx/config/user-input.h"
 #include "wx/dialogs/base-dialog.h"
 #include "wx/widgets/client-data.h"
+#include "wx/widgets/shortcut-menu-bar.h"
+#include "wx/widgets/shortcut-menu-item.h"
+#include "wx/widgets/shortcut-menu.h"
 #include "wx/widgets/user-input-ctrl.h"
-#include "wx/wxvbam.h"
 
 namespace dialogs {
 
@@ -48,7 +53,9 @@ wxString AppendString(const wxString& prefix, int level, const wxString& command
     return prefix + wxString(' ', 2 * level) + command_name;
 }
 
-wxString AppendMenuItem(const wxString& prefix, int level, const wxMenuItem* menu_item) {
+wxString AppendMenuItem(const wxString& prefix,
+                        int level,
+                        const widgets::ShortcutMenuItem* menu_item) {
     return AppendString(prefix, level,
                         menu_item->GetItemLabelText() + (menu_item->IsSubMenu() ? "\n" : ""));
 }
@@ -56,25 +63,46 @@ wxString AppendMenuItem(const wxString& prefix, int level, const wxMenuItem* men
 void AppendItemToTree(std::unordered_map<config::ShortcutCommand, wxTreeItemId>* command_to_item_id,
                       wxTreeCtrl* tree,
                       const wxTreeItemId& parent,
-                      int command,
+                      const widgets::ShortcutMenuItem* menu_item,
                       const wxString& prefix,
                       int level) {
-    int i = 0;
-    for (; i < ncmds; i++) {
-        if (command == cmdtab[i].cmd_id) {
-            break;
-        }
+    if (!menu_item->shortcut()) {
+        return;
     }
-    assert(i < ncmds);
 
+    wxString command_name = menu_item->GetHelp();
+    if (command_name.empty()) {
+        command_name = menu_item->GetItemLabelText();
+    }
+
+    const config::ShortcutCommand command(menu_item->handler_id());
     const wxTreeItemId tree_item_id = tree->AppendItem(
         parent,
-        /*text=*/cmdtab[i].name,
+        /*text=*/command_name,
         /*image=*/-1,
         /*selImage=*/-1,
         /*data=*/
-        new CommandTreeItemData(config::ShortcutCommand(command),
-                                AppendString(prefix, level, cmdtab[i].name), cmdtab[i].name));
+        new CommandTreeItemData(command, AppendString(prefix, level, command_name), command_name));
+    command_to_item_id->emplace(command, tree_item_id);
+
+    return;
+}
+
+void AppendRecentItem(std::unordered_map<config::ShortcutCommand, wxTreeItemId>* command_to_item_id,
+                      wxTreeCtrl* tree,
+                      const wxTreeItemId& parent,
+                      size_t recent_index,
+                      const wxString& prefix,
+                      int level) {
+    const config::ShortcutCommand command(config::GetRecentHandlerID(recent_index));
+    const wxString text = wxString::Format(_("Load Recent ROM %zu"), recent_index + 1);
+    const wxTreeItemId tree_item_id =
+        tree->AppendItem(parent,
+                         /*text=*/text,
+                         /*image=*/-1,
+                         /*selImage=*/-1,
+                         /*data=*/
+                         new CommandTreeItemData(command, AppendString(prefix, level, text), text));
     command_to_item_id->emplace(command, tree_item_id);
 }
 
@@ -83,31 +111,31 @@ void PopulateTreeWithMenu(
     std::unordered_map<config::ShortcutCommand, wxTreeItemId>* command_to_item_id,
     wxTreeCtrl* tree,
     const wxTreeItemId& parent,
-    wxMenu* menu,
-    const wxMenu* recents,
+    const widgets::ShortcutMenu* menu,
     const wxString& prefix,
     int level = 1) {
-    for (auto menu_item : menu->GetMenuItems()) {
+    for (size_t i = 0; i < menu->GetMenuItemCount(); i++) {
+        const widgets::ShortcutMenuItem* menu_item = menu->GetShortcutMenuItem(i);
         if (menu_item->IsSeparator()) {
-            tree->AppendItem(parent, "-----");
+            continue;
         } else if (menu_item->IsSubMenu()) {
-            if (menu_item->GetSubMenu() == recents) {
-                // This has to be done manually because not all recents are always populated.
-                const wxTreeItemId recents_parent =
-                    tree->AppendItem(parent, menu_item->GetItemLabelText());
-                const wxString recents_prefix = AppendMenuItem(prefix, level, menu_item);
-                for (int i = wxID_FILE1; i <= wxID_FILE10; i++) {
-                    AppendItemToTree(command_to_item_id, tree, recents_parent, i, recents_prefix,
-                                     level + 1);
+            const wxTreeItemId sub_parent = tree->AppendItem(parent, menu_item->GetItemLabelText());
+            if (menu_item->GetId() == XRCID("RecentMenu")) {
+                for (size_t recent = 0; recent < 10; recent++) {
+                    AppendRecentItem(command_to_item_id, tree, sub_parent, recent, prefix, level);
                 }
             } else {
-                const wxTreeItemId sub_parent =
-                    tree->AppendItem(parent, menu_item->GetItemLabelText());
-                PopulateTreeWithMenu(command_to_item_id, tree, sub_parent, menu_item->GetSubMenu(),
-                                     recents, AppendMenuItem(prefix, level, menu_item), level + 1);
+                PopulateTreeWithMenu(command_to_item_id, tree, sub_parent,
+                                     menu_item->GetShortcutSubMenu(),
+                                     AppendMenuItem(prefix, level, menu_item), level + 1);
+            }
+
+            if (tree->GetChildrenCount(sub_parent) == 0) {
+                // Empty menu, remove it.
+                tree->Delete(sub_parent);
             }
         } else {
-            AppendItemToTree(command_to_item_id, tree, parent, menu_item->GetId(), prefix, level);
+            AppendItemToTree(command_to_item_id, tree, parent, menu_item, prefix, level);
         }
     }
 }
@@ -116,22 +144,18 @@ void PopulateTreeWithMenu(
 
 // static
 AccelConfig* AccelConfig::NewInstance(wxWindow* parent,
-                                      wxMenuBar* menu,
-                                      wxMenu* recents,
-                                      const config::BindingsProvider bindings_provider) {
+                                      widgets::ShortcutMenuBar* menu_bar,
+                                      config::ConfigProvider* const config_provider) {
     assert(parent);
-    assert(menu);
-    assert(recents);
-    return new AccelConfig(parent, menu, recents, bindings_provider);
+    assert(menu_bar);
+    assert(config_provider);
+    return new AccelConfig(parent, menu_bar, config_provider);
 }
 
 AccelConfig::AccelConfig(wxWindow* parent,
-                         wxMenuBar* menu,
-                         wxMenu* recents,
-                         const config::BindingsProvider bindings_provider)
-    : BaseDialog(parent, "AccelConfig"), bindings_provider_(bindings_provider) {
-    assert(menu);
-
+                         widgets::ShortcutMenuBar* menu_bar,
+                         config::ConfigProvider* const config_provider)
+    : BaseDialog(parent, "AccelConfig"), config_provider_(config_provider) {
     // Loads the various dialog elements.
     tree_ = GetValidatedChild<wxTreeCtrl>("Commands");
     current_keys_ = GetValidatedChild<wxListBox>("Current");
@@ -144,12 +168,17 @@ AccelConfig::AccelConfig(wxWindow* parent,
     key_input_->MoveBeforeInTabOrder(assign_button_);
 
     // Populate the tree from the menu.
-    wxTreeItemId root_id = tree_->AddRoot("root");
-    wxTreeItemId menu_id = tree_->AppendItem(root_id, _("Menu commands"));
-    for (size_t i = 0; i < menu->GetMenuCount(); i++) {
-        wxTreeItemId id = tree_->AppendItem(menu_id, menu->GetMenuLabelText(i));
-        PopulateTreeWithMenu(&command_to_item_id_, tree_, id, menu->GetMenu(i), recents,
-                             menu->GetMenuLabelText(i) + '\n');
+    const wxTreeItemId root_id = tree_->AddRoot("root");
+    const wxTreeItemId menu_id = tree_->AppendItem(root_id, _("Menu commands"));
+    for (size_t i = 0; i < menu_bar->GetMenuCount(); i++) {
+        const wxTreeItemId id = tree_->AppendItem(menu_id, menu_bar->GetMenuLabelText(i));
+        PopulateTreeWithMenu(&command_to_item_id_, tree_, id, menu_bar->GetShortcutMenu(i),
+                             menu_bar->GetMenuLabelText(i) + '\n');
+
+        if (tree_->GetChildrenCount(id) == 0) {
+            // Empty menu, remove it.
+            tree_->Delete(id);
+        }
     }
     tree_->ExpandAll();
     tree_->SelectItem(menu_id);
@@ -212,11 +241,11 @@ void AccelConfig::OnDialogShown(wxShowEvent& ev) {
     remove_button_->Enable(false);
     currently_assigned_label_->SetLabel("");
 
-    config_shortcuts_ = bindings_provider_()->Clone();
+    config_shortcuts_ = config_provider_->bindings()->Clone();
 }
 
 void AccelConfig::OnValidate(wxCommandEvent& ev) {
-    *bindings_provider_() = std::move(config_shortcuts_);
+    *config_provider_->bindings() = std::move(config_shortcuts_);
     ev.Skip();
 }
 
@@ -225,7 +254,7 @@ void AccelConfig::OnCommandSelected(wxTreeEvent& ev) {
         static_cast<const CommandTreeItemData*>(tree_->GetItemData(ev.GetItem()));
 
     if (!command_tree_data) {
-        selected_command_ = 0;
+        selected_command_ = config::HandlerID::Noop;
         PopulateCurrentKeys();
         ev.Veto();
         return;
@@ -250,7 +279,7 @@ void AccelConfig::OnRemoveBinding(wxCommandEvent&) {
         return;
     }
 
-    config_shortcuts_.UnassignInput(UserInputClientData::From(current_keys_));
+    config_shortcuts_.UnassignInput(UserInputClientData::From(current_keys_, selection));
     PopulateCurrentKeys();
 }
 
@@ -348,13 +377,13 @@ void AccelConfig::PopulateCurrentKeys() {
     const int previous_selection = current_keys_->GetSelection();
     current_keys_->Clear();
 
-    if (selected_command_ == 0) {
+    if (selected_command_ == config::HandlerID::Noop) {
         return;
     }
 
     const config::ShortcutCommand command(selected_command_);
 
-    // Populate `current_keys`.
+    // Populate `current_keys_`.
     int new_keys_count = 0;
     for (const auto& user_input : config_shortcuts_.InputsForCommand(command)) {
         current_keys_->Append(user_input.ToLocalizedString(), new UserInputClientData(user_input));

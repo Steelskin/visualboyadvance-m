@@ -22,6 +22,7 @@
 #include "core/gba/gbaGlobals.h"
 #include "core/gba/gbaSound.h"
 #include "wx/config/option-proxy.h"
+#include "wx/main-frame.h"
 #include "wx/wxvbam.h"
 
 extern bool soundBufferLow;

@@ -12,15 +12,20 @@ set(VBAM_WX_COMMON
     audio/internal/openal.h
     background-input.cpp
     background-input.h
-    cmdevents.cpp
     config/bindings.cpp
     config/bindings.h
     config/command.cpp
     config/command.h
     config/emulated-gamepad.cpp
     config/emulated-gamepad.h
+    config/file-history.cpp
+    config/file-history.h
+    config/handler-id.cpp
+    config/handler-id.h
     config/internal/bindings-internal.cpp
     config/internal/bindings-internal.h
+    config/internal/handler-internal.cpp
+    config/internal/handler-internal.h
     config/internal/option-internal.cpp
     config/internal/option-internal.h
     config/option-id.h
@@ -47,23 +52,45 @@ set(VBAM_WX_COMMON
     dialogs/gb-rom-info.h
     dialogs/joypad-config.cpp
     dialogs/joypad-config.h
+    dialogs/log.cpp
+    dialogs/log.h
     dialogs/sound-config.cpp
     dialogs/sound-config.h
     drawing.h
     extra-translations.cpp
-    gfxviewers.cpp
-    guiinit.cpp
-    ioregs.h
+    main-frame-handlers-emulation.cpp
+    main-frame-handlers-file.cpp
+    main-frame-handlers-help.cpp
+    main-frame-handlers-options.cpp
+    main-frame-handlers-tools.cpp
+    main-frame-handlers.cpp
+    main-frame-init.cpp
+    main-frame.cpp
+    main-frame.h
     opts.cpp
     opts.h
     panel.cpp
     rpi.h
     strutils.cpp
     strutils.h
+    viewers/base-viewer.cpp
+    viewers/base-viewer.h
+    viewers/disassemble.cpp
+    viewers/disassemble.h
+    viewers/io.cpp
+    viewers/io.h
+    viewers/ioregs.h
+    viewers/map.cpp
+    viewers/map.h
+    viewers/mem.cpp
+    viewers/mem.h
+    viewers/oam.cpp
+    viewers/oam.h
+    viewers/palette.cpp
+    viewers/palette.h
+    viewers/tile.cpp
+    viewers/tile.h
     sys.cpp
-    viewers.cpp
-    viewsupt.cpp
-    viewsupt.h
     wayland.cpp
     wayland.h
     # from external source with minor modifications
@@ -85,11 +112,19 @@ set(VBAM_WX_COMMON
     widgets/user-input-event.h
     widgets/sdl-poller.cpp
     widgets/sdl-poller.h
+    widgets/shortcut-menu-bar.cpp
+    widgets/shortcut-menu-bar.h
+    widgets/shortcut-menu-item.cpp
+    widgets/shortcut-menu-item.h
+    widgets/shortcut-menu.cpp
+    widgets/shortcut-menu.h
     widgets/utils.cpp
     widgets/utils.h
     widgets/webupdatedef.h
     widgets/wxmisc.h
     widgets/wxmisc.cpp
+    widgets/widgets.cpp
+    widgets/widgets.h
     wxhead.h
     wxlogdebug.h
     wxvbam.cpp
@@ -99,9 +134,6 @@ set(VBAM_WX_COMMON
     # Generated files.
     ${VBAM_GENERATED_DIR}/wx/builtin-xrc.h
     ${VBAM_GENERATED_DIR}/wx/builtin-over.h
-    ${VBAM_GENERATED_DIR}/wx/cmdhandlers.h
-    ${VBAM_GENERATED_DIR}/wx/cmd-evtable.h
-    ${VBAM_GENERATED_DIR}/wx/cmdtab.cpp
 )
 
 if(NOT ZIP_PROGRAM)
@@ -594,23 +626,6 @@ add_custom_command(
     OUTPUT ${VBAM_GENERATED_DIR}/wx/builtin-over.h
     COMMAND ${BIN2C} ${CMAKE_SOURCE_DIR}/src/vba-over.ini ${VBAM_GENERATED_DIR}/wx/builtin-over.h builtin_over
     DEPENDS ${CMAKE_SOURCE_DIR}/src/vba-over.ini ${BIN2C}
-)
-
-# I don't like duplicating/triplicating code, so I only declare
-# event handlers once, and copy them in other places they are needed
-# all using portable cmake code
-add_custom_command(
-    OUTPUT
-        ${VBAM_GENERATED_DIR}/wx/cmdtab.cpp
-        ${VBAM_GENERATED_DIR}/wx/cmdhandlers.h
-        ${VBAM_GENERATED_DIR}/wx/cmd-evtable.h
-    COMMAND
-        ${CMAKE_COMMAND} -D OUTDIR=${VBAM_GENERATED_DIR}/wx/ -P copy-events.cmake
-    WORKING_DIRECTORY
-        ${CMAKE_CURRENT_SOURCE_DIR}
-    DEPENDS
-        cmdevents.cpp
-        copy-events.cmake
 )
 
 set(VBAM_LOCALIZABLE_FILES ${VBAM_WX_COMMON})

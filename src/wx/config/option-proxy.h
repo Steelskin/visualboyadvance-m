@@ -38,7 +38,6 @@ static constexpr std::array<Option::Type, kNbOptions> kOptionsTypes = {
     /// GBA
     /*kGBABiosFile*/ Option::Type::kString,
     /*kGBALCDFilter*/ Option::Type::kBool,
-#ifndef NO_LINK
     /*kGBALinkAuto*/ Option::Type::kBool,
     /*kGBALinkFast*/ Option::Type::kBool,
     /*kGBALinkHost*/ Option::Type::kString,
@@ -47,7 +46,6 @@ static constexpr std::array<Option::Type, kNbOptions> kOptionsTypes = {
     /*kGBALinkProto*/ Option::Type::kBool,
     /*kGBALinkTimeout*/ Option::Type::kInt,
     /*kGBALinkType*/ Option::Type::kInt,
-#endif
     /*kGBAROMDir*/ Option::Type::kString,
 
     /// General
@@ -87,9 +85,7 @@ static constexpr std::array<Option::Type, kNbOptions> kOptionsTypes = {
     /*kPrefGBPrinter*/ Option::Type::kInt,
     /*kPrefGDBBreakOnLoad*/ Option::Type::kBool,
     /*kPrefGDBPort*/ Option::Type::kInt,
-#ifndef NO_LINK
     /*kPrefLinkNumPlayers*/ Option::Type::kInt,
-#endif
     /*kPrefMaxScale*/ Option::Type::kInt,
     /*kPrefPauseWhenInactive*/ Option::Type::kBool,
     /*kPrefRTCEnabled*/ Option::Type::kInt,

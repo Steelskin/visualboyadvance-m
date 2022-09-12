@@ -5,21 +5,34 @@
 #include <cstring>
 
 #ifdef __WXGTK__
-    #include <X11/Xlib.h>
-    #define Status int
-    #include <gdk/gdkx.h>
-    #include <gtk/gtk.h>
-    // For Wayland EGL.
-    #ifdef HAVE_EGL
-        #include <EGL/egl.h>
-    #endif
+
+#include <X11/Xlib.h>
+#define Status int
+
+#include <gdk/gdkx.h>
+#include <gtk/gtk.h>
+
+// For Wayland EGL.
+#ifdef HAVE_EGL
+#include <EGL/egl.h>
+#endif  // HAVE_EGL
+
 #ifdef HAVE_XSS
-    #include <X11/extensions/scrnsaver.h>
-#endif
+#include <X11/extensions/scrnsaver.h>
+#endif  // HAVE_XSS
+
+#endif  // __WXGTK__
+
+#ifdef __WXMSW__
+#include <windows.h>
 #endif
 
 #include <wx/dcbuffer.h>
+#include <wx/display.h>
+#include <wx/filehistory.h>
 #include <wx/menu.h>
+#include <wx/msgdlg.h>
+#include <wx/sizer.h>
 
 #include "components/draw_text/draw_text.h"
 #include "components/filters/filters.h"
@@ -41,18 +54,21 @@
 #include "core/gba/gbaRtc.h"
 #include "core/gba/gbaSound.h"
 #include "wx/background-input.h"
+#include "wx/config/config-provider.h"
 #include "wx/config/emulated-gamepad.h"
+#include "wx/config/file-history.h"
 #include "wx/config/option-id.h"
 #include "wx/config/option-proxy.h"
 #include "wx/config/option.h"
 #include "wx/drawing.h"
+#include "wx/main-frame.h"
+#include "wx/opts.h"
+#include "wx/viewers/base-viewer.h"
 #include "wx/wayland.h"
 #include "wx/widgets/render-plugin.h"
+#include "wx/widgets/shortcut-menu-item.h"
 #include "wx/widgets/user-input-event.h"
-
-#ifdef __WXMSW__
-#include <windows.h>
-#endif
+#include "wx/wxhead.h"
 
 namespace {
 
@@ -123,7 +139,7 @@ long GetSampleRate() {
 
 int emulating;
 
-IMPLEMENT_DYNAMIC_CLASS(GameArea, wxPanel)
+wxIMPLEMENT_DYNAMIC_CLASS(GameArea, wxPanel);
 
 GameArea::GameArea()
     : wxPanel(),
@@ -141,6 +157,7 @@ GameArea::GameArea()
       paused(false),
       pointer_blanked(false),
       mouse_active_time(0),
+      config_provider_(&wxGetApp()),
       render_observer_({config::OptionID::kDispBilinear, config::OptionID::kDispFilter,
                         config::OptionID::kDispRenderMethod, config::OptionID::kDispIFB,
                         config::OptionID::kDispStretch, config::OptionID::kPrefVsync},
@@ -221,17 +238,8 @@ void GameArea::LoadGame(const wxString& name)
         return;
     }
 
-    {
-        wxConfigBase* cfg = wxConfigBase::Get();
-
-        if (!OPTION(kGenFreezeRecent)) {
-            gopts.recent->AddFileToHistory(name);
-            wxGetApp().frame->ResetRecentAccelerators();
-            cfg->SetPath("/Recent");
-            gopts.recent->Save(*cfg);
-            cfg->SetPath("/");
-            cfg->Flush();
-        }
+    if (!OPTION(kGenFreezeRecent)) {
+        config_provider_->file_history()->AddFileToHistory(fnfn);
     }
 
     UnloadGame();
@@ -440,9 +448,8 @@ void GameArea::LoadGame(const wxString& name)
     was_paused = true;
     schedule_audio_restart_ = false;
     MainFrame* mf = wxGetApp().frame;
-    mf->cmd_enable &= ~(CMDEN_GB | CMDEN_GBA);
-    mf->cmd_enable |= ONLOAD_CMDEN;
-    mf->cmd_enable |= loaded == IMAGE_GB ? CMDEN_GB : (CMDEN_GBA | CMDEN_NGDB_GBA);
+    mf->cmd_enable_ &= ~(widgets::kGameRunning);
+    mf->cmd_enable_ |= loaded == IMAGE_GB ? widgets::CMDEN_GB : widgets::CMDEN_GBA;
     mf->enable_menus();
 #if (defined __WIN32__ || defined _WIN32)
 #ifndef NO_LINK
@@ -469,7 +476,7 @@ void GameArea::LoadGame(const wxString& name)
 
     // load battery and/or saved state
     recompute_dirs();
-    mf->update_state_ts(true);
+    mf->update_state_ts();
     bool did_autoload = OPTION(kGenAutoLoadLastState) ? LoadState() : false;
 
     if (!did_autoload || coreOptions.skipSaveGameBattery) {
@@ -659,7 +666,7 @@ void GameArea::UnloadGame(bool destruct)
 #if defined(VBAM_ENABLE_DEBUGGER)
     debugger = false;
     remoteCleanUp();
-    mf->cmd_enable |= CMDEN_NGDB_ANY;
+    mf->cmd_enable_ &= ~widgets::CMDEN_GDB;
 #endif  // VBAM_ENABLE_DEBUGGER
 
     if (loaded == IMAGE_GB) {
@@ -692,8 +699,8 @@ void GameArea::UnloadGame(bool destruct)
 
     // remaining items are GUI updates that should not be needed in destructor
     SetFrameTitle();
-    mf->cmd_enable &= UNLOAD_CMDEN_KEEP;
-    mf->update_state_ts(true);
+    mf->cmd_enable_ &= widgets::kUnloadEnableFlagsKeep;
+    mf->update_state_ts();
     mf->enable_menus();
     mf->ResetCheatSearch();
 
@@ -725,7 +732,7 @@ bool GameArea::LoadState(const wxFileName& fname)
 
     if (ret && num_rewind_states) {
         MainFrame* mf = wxGetApp().frame;
-        mf->cmd_enable &= ~CMDEN_REWIND;
+        mf->cmd_enable_ &= ~widgets::CMDEN_REWIND;
         mf->enable_menus();
         num_rewind_states = 0;
         // do an immediate rewind save
@@ -769,7 +776,7 @@ bool GameArea::SaveState(const wxFileName& fname)
 {
     // FIXME: first copy to backup state if not backup state
     bool ret = emusys->emuWriteState(UTF8(fname.GetFullPath()));
-    wxGetApp().frame->update_state_ts(true);
+    wxGetApp().frame->update_state_ts();
     wxString msg;
     msg.Printf(ret ? _("Saved state %s") : _("Error saving state %s"),
         fname.GetFullPath().wc_str());
@@ -1300,7 +1307,7 @@ void GameArea::OnIdle(wxIdleEvent& event)
             wxLogInfo(_("Error writing rewind state"));
         else {
             if (!num_rewind_states) {
-                mf->cmd_enable |= CMDEN_REWIND;
+                mf->cmd_enable_ |= widgets::CMDEN_REWIND;
                 mf->enable_menus();
             }
 
@@ -2473,8 +2480,7 @@ void GameArea::StartVidRecording(const wxString& fname)
             media_err(ret));
     else {
         MainFrame* mf = wxGetApp().frame;
-        mf->cmd_enable &= ~(CMDEN_NVREC | CMDEN_NREC_ANY);
-        mf->cmd_enable |= CMDEN_VREC;
+        mf->cmd_enable_ |= widgets::CMDEN_VREC;
         mf->enable_menus();
     }
 }
@@ -2483,12 +2489,7 @@ void GameArea::StopVidRecording()
 {
     vid_rec.Stop();
     MainFrame* mf = wxGetApp().frame;
-    mf->cmd_enable &= ~CMDEN_VREC;
-    mf->cmd_enable |= CMDEN_NVREC;
-
-    if (!(mf->cmd_enable & (CMDEN_VREC | CMDEN_SREC)))
-        mf->cmd_enable |= CMDEN_NREC_ANY;
-
+    mf->cmd_enable_ &= ~widgets::CMDEN_VREC;
     mf->enable_menus();
 }
 
@@ -2502,8 +2503,7 @@ void GameArea::StartSoundRecording(const wxString& fname)
             media_err(ret));
     else {
         MainFrame* mf = wxGetApp().frame;
-        mf->cmd_enable &= ~(CMDEN_NSREC | CMDEN_NREC_ANY);
-        mf->cmd_enable |= CMDEN_SREC;
+        mf->cmd_enable_ |= widgets::CMDEN_SREC;
         mf->enable_menus();
     }
 }
@@ -2512,12 +2512,7 @@ void GameArea::StopSoundRecording()
 {
     snd_rec.Stop();
     MainFrame* mf = wxGetApp().frame;
-    mf->cmd_enable &= ~CMDEN_SREC;
-    mf->cmd_enable |= CMDEN_NSREC;
-
-    if (!(mf->cmd_enable & (CMDEN_VREC | CMDEN_SREC)))
-        mf->cmd_enable |= CMDEN_NREC_ANY;
-
+    mf->cmd_enable_ &= ~widgets::CMDEN_SREC;
     mf->enable_menus();
 }
 

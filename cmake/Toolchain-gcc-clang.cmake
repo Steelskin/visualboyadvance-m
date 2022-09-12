@@ -23,6 +23,10 @@ add_compile_options(
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(-Wno-unused-command-line-argument)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        add_compile_options(-Wno-deprecated-copy-with-user-provided-copy)
+        add_compile_options(-Wno-inconsistent-missing-override)
+    endif()
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(-feliminate-unused-debug-types)
 endif()

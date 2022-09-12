@@ -10,6 +10,8 @@
 
 #include <wx/string.h>
 
+#include "wx/config/handler-id.h"
+
 namespace config {
 
 // clang-format off
@@ -119,12 +121,12 @@ private:
     const GameKey game_key_;
 };
 
-// A Shortcut Command is represented by the wx command ID.
+// A Shortcut Command is represented by the HandlerID.
 class ShortcutCommand final {
 public:
-    constexpr explicit ShortcutCommand(int id) : id_(id) {}
+    constexpr explicit ShortcutCommand(HandlerID id) : id_(id) {}
 
-    constexpr int id() const { return id_; }
+    constexpr HandlerID id() const { return id_; }
     wxString ToConfigString() const;
 
     constexpr bool operator==(const ShortcutCommand& other) const { return id_ == other.id_; }
@@ -137,7 +139,7 @@ public:
     constexpr bool operator>=(const ShortcutCommand& other) const { return !(*this < other); }
 
 private:
-    const int id_;
+    const HandlerID id_;
 };
 
 // Conversion utility method. Returns empty string on failure.
@@ -246,7 +248,7 @@ struct std::hash<config::GameCommand> {
 template <>
 struct std::hash<config::ShortcutCommand> {
     std::size_t operator()(const config::ShortcutCommand& shortcut) const noexcept {
-        return std::hash<int>{}(shortcut.id());
+        return std::hash<config::HandlerID>{}(shortcut.id());
     }
 };
 

@@ -1,754 +1,1046 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <resource xmlns="http://www.wxwidgets.org/wxxrc" version="2.5.3.0">
-  <object class="wxMenuBar" name="MainMenu">
-    <object class="wxMenu">
+  <object class="ShortcutMenuBar" name="MainMenu">
+    <object class="ShortcutMenu">
+      <!-- File -->
       <label>_File</label>
-      <object class="wxMenuItem" name="wxID_OPEN">
-        <label>Open...</label>
+      <object class="ShortcutMenuItem" name="wxID_OPEN">
+        <label>Open Game Boy _Advance...</label>
       </object>
-      <object class="wxMenuItem" name="OpenGB">
+      <object class="ShortcutMenuItem" name="OpenGB">
         <label>Open _Game Boy...</label>
       </object>
-      <object class="wxMenuItem" name="OpenGBC">
+      <object class="ShortcutMenuItem" name="OpenGBC">
         <label>Open Game Boy _Color...</label>
       </object>
-      <object class="wxMenu" name="RecentMenu">
+
+      <!-- File - Recent -->
+      <object class="ShortcutMenu" name="RecentMenu">
         <label>Open rece_nt</label>
-        <object class="wxMenuItem" name="RecentReset">
-          <label>_Reset recent list</label>
+        <object class="ShortcutMenuItem" name="RecentReset">
+          <label>_Reset recent ROM list</label>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="RecentFreeze">
-          <label>_Freeze recent list</label>
+        <object class="ShortcutMenuItem" name="RecentFreeze">
+          <label>_Freeze recent ROM list</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-      </object>
-      <object class="wxMenuItem" name="RomInformation">
+        <object class="ShortcutSeparator"/>
+        <!-- Recent items will be populated here. -->      </object>
+
+      <!-- File -->
+      <object class="ShortcutMenuItem" name="RomInformation">
         <label>ROM in_formation...</label>
+        <condition>GameRunning</condition>
       </object>
-      <object class="separator"/>
-      <object class="wxMenu">
+
+      <object class="ShortcutSeparator"/>
+
+      <!-- File - e-Reader -->
+      <object class="ShortcutMenu">
         <label>_e-Reader</label>
-        <object class="wxMenuItem" name="ResetLoadingDotCodeFile">
+        <object class="ShortcutMenuItem" name="ResetLoadingDotCodeFile">
           <label>_Reset Loading Dot Code</label>
+          <condition>GBAGameRunning</condition>
         </object>
-        <object class="wxMenuItem" name="SetLoadingDotCodeFile">
+        <object class="ShortcutMenuItem" name="SetLoadingDotCodeFile">
           <label>_Load Dot Code...</label>
+          <condition>GBAGameRunning</condition>
         </object>
-        <object class="wxMenuItem" name="ResetSavingDotCodeFile">
+        <object class="ShortcutMenuItem" name="ResetSavingDotCodeFile">
           <label>_Reset Saving Dot Code</label>
+          <condition>GBAGameRunning</condition>
         </object>
-        <object class="wxMenuItem" name="SetSavingDotCodeFile">
+        <object class="ShortcutMenuItem" name="SetSavingDotCodeFile">
           <label>_Save Dot Code...</label>
+          <condition>GBAGameRunning</condition>
         </object>
       </object>
-      <object class="separator"/>
-      <object class="wxMenu">
-        <object class="wxMenuItem" name="LoadGameRecent">
+
+      <object class="ShortcutSeparator"/>
+
+      <!-- File - Load state -->
+      <object class="ShortcutMenu">
+        <label>_Load state</label>
+        <object class="ShortcutMenuItem" name="LoadStateRecent">
           <label>Most _recent</label>
+          <condition>SaveStateAvailable</condition>
+          <help>Load most recent state</help>
         </object>
-        <object class="wxMenuItem" name="LoadGameSlot">
+        <object class="ShortcutMenuItem" name="LoadStateSlot">
           <label>Load current state slot</label>
+          <condition>SaveStateAvailable</condition>
         </object>
-        <object class="wxMenuItem" name="LoadGameAutoLoad">
+        <object class="ShortcutMenuItem" name="LoadStateAutoLoad">
           <label>_Auto load most recent</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="LoadGame01">
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="LoadState01">
           <label translate="0">_1</label>
+          <condition>SaveStateAvailable</condition>
+          <help>Load saved state 1</help>
         </object>
-        <object class="wxMenuItem" name="LoadGame02">
+        <object class="ShortcutMenuItem" name="LoadState02">
           <label translate="0">_2</label>
+          <condition>SaveStateAvailable</condition>
+          <help>Load saved state 2</help>
         </object>
-        <object class="wxMenuItem" name="LoadGame03">
+        <object class="ShortcutMenuItem" name="LoadState03">
           <label translate="0">_3</label>
+          <condition>SaveStateAvailable</condition>
+          <help>Load saved state 3</help>
         </object>
-        <object class="wxMenuItem" name="LoadGame04">
+        <object class="ShortcutMenuItem" name="LoadState04">
           <label translate="0">_4</label>
+          <condition>SaveStateAvailable</condition>
+          <help>Load saved state 4</help>
         </object>
-        <object class="wxMenuItem" name="LoadGame05">
+        <object class="ShortcutMenuItem" name="LoadState05">
           <label translate="0">_5</label>
+          <condition>SaveStateAvailable</condition>
+          <help>Load saved state 5</help>
         </object>
-        <object class="wxMenuItem" name="LoadGame06">
+        <object class="ShortcutMenuItem" name="LoadState06">
           <label translate="0">_6</label>
+          <condition>SaveStateAvailable</condition>
+          <help>Load saved state 6</help>
         </object>
-        <object class="wxMenuItem" name="LoadGame07">
+        <object class="ShortcutMenuItem" name="LoadState07">
           <label translate="0">_7</label>
+          <condition>SaveStateAvailable</condition>
+          <help>Load saved state 7</help>
         </object>
-        <object class="wxMenuItem" name="LoadGame08">
+        <object class="ShortcutMenuItem" name="LoadState08">
           <label translate="0">_8</label>
+          <condition>SaveStateAvailable</condition>
+          <help>Load saved state 8</help>
         </object>
-        <object class="wxMenuItem" name="LoadGame09">
+        <object class="ShortcutMenuItem" name="LoadState09">
           <label translate="0">_9</label>
+          <condition>SaveStateAvailable</condition>
+          <help>Load saved state 9</help>
         </object>
-        <object class="wxMenuItem" name="LoadGame10">
+        <object class="ShortcutMenuItem" name="LoadState10">
           <label translate="0">1_0</label>
+          <condition>SaveStateAvailable</condition>
+          <help>Load saved state 10</help>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="Load">
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="LoadStateFile">
           <label>From _File...</label>
+          <condition>GameRunning</condition>
+          <help>Load state from file</help>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="KeepSaves">
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="LoadStateKeepSaves">
           <label>Do not change _battery save</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="KeepCheats">
+        <object class="ShortcutMenuItem" name="LoadStateKeepCheats">
           <label>Do not change _cheat list</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <label>_Load state</label>
       </object>
-      <object class="wxMenu">
-        <object class="wxMenuItem" name="SaveGameOldest">
-          <label>_Oldest slot</label>
-        </object>
-        <object class="wxMenuItem" name="SaveGameSlot">
-          <label>Save current state slot</label>
-        </object>
-        <object class="wxMenuItem" name="IncrGameSlotSave">
-          <label>Increase state slot number and save</label>
-        </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="SaveGame01">
-          <label translate="0">_1</label>
-        </object>
-        <object class="wxMenuItem" name="SaveGame02">
-          <label>_2</label>
-        </object>
-        <object class="wxMenuItem" name="SaveGame03">
-          <label>_3</label>
-        </object>
-        <object class="wxMenuItem" name="SaveGame04">
-          <label>_4</label>
-        </object>
-        <object class="wxMenuItem" name="SaveGame05">
-          <label>_5</label>
-        </object>
-        <object class="wxMenuItem" name="SaveGame06">
-          <label>_6</label>
-        </object>
-        <object class="wxMenuItem" name="SaveGame07">
-          <label>_7</label>
-        </object>
-        <object class="wxMenuItem" name="SaveGame08">
-          <label>_8</label>
-        </object>
-        <object class="wxMenuItem" name="SaveGame09">
-          <label>_9</label>
-        </object>
-        <object class="wxMenuItem" name="SaveGame10">
-          <label>1_0</label>
-        </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="Save">
-          <label>To _File...</label>
-        </object>
+
+      <!-- File - Save state -->
+      <object class="ShortcutMenu">
         <label>_Save state</label>
+        <object class="ShortcutMenuItem" name="SaveStateOldest">
+          <label>_Oldest slot</label>
+          <condition>GameRunning</condition>
+          <help>Save state to oldest slot</help>
+        </object>
+        <object class="ShortcutMenuItem" name="SaveStateSlot">
+          <label>Save current state slot</label>
+          <condition>GameRunning</condition>
+        </object>
+        <object class="ShortcutMenuItem" name="SaveStateIncreaseSlot">
+          <label>Increase state slot number and save</label>
+          <condition>GameRunning</condition>
+        </object>
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="SaveState01">
+          <label translate="0">_1</label>
+          <condition>GameRunning</condition>
+          <help>Save state to slot 1</help>
+        </object>
+        <object class="ShortcutMenuItem" name="SaveState02">
+          <label>_2</label>
+          <condition>GameRunning</condition>
+          <help>Save state to slot 2</help>
+        </object>
+        <object class="ShortcutMenuItem" name="SaveState03">
+          <label>_3</label>
+          <condition>GameRunning</condition>
+          <help>Save state to slot 3</help>
+        </object>
+        <object class="ShortcutMenuItem" name="SaveState04">
+          <label>_4</label>
+          <condition>GameRunning</condition>
+          <help>Save state to slot 4</help>
+        </object>
+        <object class="ShortcutMenuItem" name="SaveState05">
+          <label>_5</label>
+          <condition>GameRunning</condition>
+          <help>Save state to slot 5</help>
+        </object>
+        <object class="ShortcutMenuItem" name="SaveState06">
+          <label>_6</label>
+          <condition>GameRunning</condition>
+          <help>Save state to slot 6</help>
+        </object>
+        <object class="ShortcutMenuItem" name="SaveState07">
+          <label>_7</label>
+          <condition>GameRunning</condition>
+          <help>Save state to slot 7</help>
+        </object>
+        <object class="ShortcutMenuItem" name="SaveState08">
+          <label>_8</label>
+          <condition>GameRunning</condition>
+          <help>Save state to slot 8</help>
+        </object>
+        <object class="ShortcutMenuItem" name="SaveState09">
+          <label>_9</label>
+          <condition>GameRunning</condition>
+          <help>Save state to slot 9</help>
+        </object>
+        <object class="ShortcutMenuItem" name="SaveState10">
+          <label>1_0</label>
+          <condition>GameRunning</condition>
+          <help>Save state to slot 10</help>
+        </object>
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="SaveStateFile">
+          <label>To _File...</label>
+          <condition>GameRunning</condition>
+          <help>Save state to file</help>
+        </object>
       </object>
-      <object class="wxMenuItem" name="IncrGameSlot">
+
+      <!-- File -->
+      <object class="ShortcutMenuItem" name="StateIncreaseSlot">
         <label>Increase state slot number</label>
+        <condition>GameRunning</condition>
       </object>
-      <object class="wxMenuItem" name="DecrGameSlot">
+      <object class="ShortcutMenuItem" name="StateDecreaseSlot">
         <label>Decrease state slot number</label>
+        <condition>GameRunning</condition>
       </object>
-      <object class="separator"/>
-      <object class="wxMenu">
-        <object class="wxMenuItem" name="ImportBatteryFile">
-          <label>_Battery file...</label>
-        </object>
-        <object class="wxMenuItem" name="ImportGamesharkCodeFile">
-          <label>Game Shark _code file...</label>
-        </object>
-        <object class="wxMenuItem" name="ImportGamesharkActionReplaySnapshot">
-          <label>_Game Shark snapshot...</label>
-        </object>
+
+      <object class="ShortcutSeparator"/>
+
+      <!-- File - Import -->
+      <object class="ShortcutMenu">
         <label>_Import</label>
-      </object>
-      <object class="wxMenu">
-        <object class="wxMenuItem" name="ExportBatteryFile">
+        <object class="ShortcutMenuItem" name="ImportBatteryFile">
           <label>_Battery file...</label>
+          <condition>GameRunning</condition>
+          <help>Import battery file</help>
         </object>
-        <object class="wxMenuItem" name="ExportGamesharkSnapshot">
+        <object class="ShortcutMenuItem" name="ImportGamesharkCodeFile">
+          <label>Game Shark _code file...</label>
+          <condition>GameRunning</condition>
+          <help>Import Game Shark code file</help>
+        </object>
+        <object class="ShortcutMenuItem" name="ImportGamesharkActionReplaySnapshot">
           <label>_Game Shark snapshot...</label>
+          <condition>GameRunning</condition>
+          <help>Import Game Shark snapshot</help>
         </object>
+      </object>
+
+      <!-- File - Export -->
+      <object class="ShortcutMenu">
         <label>_Export</label>
+        <object class="ShortcutMenuItem" name="ExportBatteryFile">
+          <label>_Battery file...</label>
+          <condition>GameRunning</condition>
+          <help>Export battery file</help>
+        </object>
+        <object class="ShortcutMenuItem" name="ExportGamesharkSnapshot">
+          <label>_Game Shark snapshot...</label>
+          <condition>GBAGameRunning</condition>
+          <help>Export Game Shark snapshot</help>
+        </object>
       </object>
-      <object class="separator"/>
-      <object class="wxMenuItem" name="ScreenCapture">
+
+      <object class="ShortcutSeparator"/>
+
+      <!-- File -->
+      <object class="ShortcutMenuItem" name="ScreenCapture">
         <label>Screen capt_ure...</label>
+        <condition>GameRunning</condition>
       </object>
-      <object class="wxMenu">
-        <object class="wxMenuItem" name="RecordSoundStartRecording">
-          <label>Start _sound recording...</label>
-        </object>
-        <object class="wxMenuItem" name="RecordSoundStopRecording">
-          <label>Stop s_ound recording</label>
-        </object>
-        <object class="wxMenuItem" name="RecordAVIStartRecording">
-          <label>Start _video recording...</label>
-        </object>
-        <object class="wxMenuItem" name="RecordAVIStopRecording">
-          <label>Stop v_ideo recording</label>
-        </object>
-        <object class="wxMenuItem" name="RecordMovieStartRecording">
-          <label>Start _game recording...</label>
-        </object>
-        <object class="wxMenuItem" name="RecordMovieStopRecording">
-          <label>Stop g_ame recording</label>
-        </object>
+
+      <!-- File - Record -->
+      <object class="ShortcutMenu">
         <label>_Record</label>
+        <object class="ShortcutMenuItem" name="RecordSoundStartRecording">
+          <label>Start _sound recording...</label>
+          <condition>SoundRecordingOff</condition>
+          <activtate>FFMpegEnabled</activtate>
+        </object>
+        <object class="ShortcutMenuItem" name="RecordSoundStopRecording">
+          <label>Stop s_ound recording</label>
+          <condition>SoundRecordingOn</condition>
+          <activtate>FFMpegEnabled</activtate>
+        </object>
+        <object class="ShortcutMenuItem" name="RecordAVIStartRecording">
+          <label>Start _video recording...</label>
+          <condition>VideoRecordingOff</condition>
+          <activtate>FFMpegEnabled</activtate>
+        </object>
+        <object class="ShortcutMenuItem" name="RecordAVIStopRecording">
+          <label>Stop v_ideo recording</label>
+          <condition>VideoRecordingOn</condition>
+          <activtate>FFMpegEnabled</activtate>
+        </object>
+        <object class="ShortcutMenuItem" name="RecordMovieStartRecording">
+          <label>Start _game recording...</label>
+          <condition>GameRecordingOff</condition>
+        </object>
+        <object class="ShortcutMenuItem" name="RecordMovieStopRecording">
+          <label>Stop g_ame recording</label>
+          <condition>GameRecordingOn</condition>
+        </object>
       </object>
-      <object class="wxMenu">
-        <object class="wxMenuItem" name="PlayMovieStartPlaying">
+
+      <!-- File - Playback -->
+      <object class="ShortcutMenu">
+        <label>_Playback</label>
+        <object class="ShortcutMenuItem" name="PlayMovieStartPlaying">
           <label>Start playing _movie...</label>
+          <condition>PlayerAvailable</condition>
         </object>
-        <object class="wxMenuItem" name="PlayMovieStopPlaying">
+        <object class="ShortcutMenuItem" name="PlayMovieStopPlaying">
           <label>Stop playing m_ovie</label>
+          <condition>GamePlaybackOn</condition>
         </object>
-        <label>_Play</label>
       </object>
-      <object class="separator"/>
-      <object class="wxMenuItem" name="wxID_CLOSE"/>
-      <object class="wxMenuItem" name="wxID_EXIT">
+
+      <object class="ShortcutSeparator"/>
+
+      <!-- File -->
+      <object class="ShortcutMenuItem" name="wxID_CLOSE"/>
+      <object class="ShortcutMenuItem" name="wxID_EXIT">
         <label>_Quit</label>
       </object>
     </object>
-    <object class="wxMenu">
+
+    <object class="ShortcutMenu">
+      <!-- Emulation -->
       <label>_Emulation</label>
-      <object class="wxMenuItem" name="Pause">
+      <object class="ShortcutMenuItem" name="Pause">
         <label>_Pause</label>
         <checkable>1</checkable>
+        <condition>GameRunning</condition>
+        <help>Pause emulation</help>
       </object>
-      <object class="wxMenuItem" name="NextFrame">
+      <object class="ShortcutMenuItem" name="NextFrame">
         <label>_Next frame</label>
+        <condition>GameRunning</condition>
+        <help>Run one frame</help>
       </object>
-      <object class="wxMenuItem" name="Rewind">
+      <object class="ShortcutMenuItem" name="Rewind">
         <label>Re_wind</label>
+        <condition>RewindStateAvailable</condition>
       </object>
-      <object class="separator"/>
-      <object class="wxMenuItem" name="ToggleFullscreen">
+      <object class="ShortcutSeparator"/>
+      <object class="ShortcutMenuItem" name="ToggleFullscreen">
         <label>Toggle _full screen</label>
         <bitmap platform="unix" stock_id="gtk-fullscreen"/>
-        <accel platform="win|unix">F11</accel>
-        <accel platform="mac">RawCtrl+Ctrl+F</accel>
       </object>
-      <object class="separator"/>
-      <object class="wxMenuItem" name="EmulatorSpeedupToggle">
+      <object class="ShortcutSeparator"/>
+      <object class="ShortcutMenuItem" name="EmulatorSpeedupToggle">
         <label>_Turbo mode</label>
         <checkable>1</checkable>
+        <condition>GameRunning</condition>
       </object>
-      <object class="wxMenuItem" name="VSync">
+      <object class="ShortcutMenuItem" name="VSync">
         <label>_VSync</label>
         <checkable>1</checkable>
       </object>
-      <object class="wxMenuItem" name="FrameSkipAuto">
+      <object class="ShortcutMenuItem" name="FrameSkipAuto">
         <label>_Auto skip frames</label>
         <checkable>1</checkable>
       </object>
-      <object class="separator"/>
-      <object class="wxMenuItem" name="SkipIntro">
+      <object class="ShortcutSeparator"/>
+      <object class="ShortcutMenuItem" name="SkipIntro">
         <label>_Skip BIOS</label>
         <checkable>1</checkable>
+        <shortcut>0</shortcut>
       </object>
-      <object class="wxMenuItem" name="ApplyPatches">
+      <object class="ShortcutMenuItem" name="ApplyPatches">
         <label>_Auto IPS / UPS / IPF patch</label>
         <checkable>1</checkable>
+        <shortcut>0</shortcut>
       </object>
-      <object class="wxMenuItem" name="PauseWhenInactive">
+      <object class="ShortcutMenuItem" name="PauseWhenInactive">
         <label>_Pause when inactive</label>
         <checkable>1</checkable>
+        <shortcut>0</shortcut>
       </object>
-      <object class="separator"/>
-      <object class="wxMenuItem" name="Reset">
+      <object class="ShortcutSeparator"/>
+      <object class="ShortcutMenuItem" name="Reset">
         <label>_Reset</label>
       </object>
     </object>
-    <object class="wxMenu">
+
+    <object class="ShortcutMenu">
+      <!-- Options -->
       <label>_Options</label>
-      <object class="wxMenu" name="LinkMenu">
+      <object class="ShortcutMenu" name="LinkMenu">
+        <!-- Options - Link -->
         <label>_Link</label>
-        <object class="wxMenuItem" name="LanLink">
+        <object class="ShortcutMenuItem" name="LinkStart">
           <label>Start _Network Link...</label>
+          <activate>LinkEnabled</activate>
+          <condition>LinkAvailable</condition>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenu">
+
+        <!-- Options - Link - Type -->
+        <object class="ShortcutMenu">
           <label>_Type</label>
-          <object class="wxMenuItem" name="LinkType0Nothing">
+          <object class="ShortcutMenuItem" name="LinkTypeNothing">
             <label>_Nothing</label>
             <checkable>1</checkable>
+            <activate>LinkEnabled</activate>
+            <shortcut>0</shortcut>
           </object>
-          <object class="wxMenuItem" name="LinkType1Cable">
+          <object class="ShortcutMenuItem" name="LinkTypeCable">
             <label>_Cable</label>
             <checkable>1</checkable>
+            <activate>LinkEnabled</activate>
+            <shortcut>0</shortcut>
           </object>
-          <object class="wxMenuItem" name="LinkType2Wireless">
+          <object class="ShortcutMenuItem" name="LinkTypeWireless">
+            <!-- Always disable Wireless link for now, this has never worked. -->
             <label>_Wireless</label>
             <checkable>1</checkable>
+            <activate>Never</activate>
+            <shortcut>0</shortcut>
           </object>
-          <object class="wxMenuItem" name="LinkType3GameCube">
+          <object class="ShortcutMenuItem" name="LinkTypeGameCube">
             <label translate="0">_Game Cube</label>
             <checkable>1</checkable>
+            <activate>LinkEnabled</activate>
+            <shortcut>0</shortcut>
           </object>
-          <object class="wxMenuItem" name="LinkType4Gameboy">
+          <object class="ShortcutMenuItem" name="LinkTypeGameboy">
             <label translate="0">_Game Boy</label>
             <checkable>1</checkable>
+            <activate>LinkEnabled</activate>
+            <shortcut>0</shortcut>
           </object>
         </object>
-        <object class="wxMenuItem" name="LinkProto">
+
+        <!-- Options - Link -->
+        <object class="ShortcutMenuItem" name="LinkLocal">
           <label>_Local mode</label>
           <checkable>1</checkable>
+          <activate>LinkEnabled</activate>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="LinkAuto">
+        <object class="ShortcutMenuItem" name="LinkAuto">
           <label>_Link at boot</label>
           <checkable>1</checkable>
+          <activate>LinkEnabled</activate>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="SpeedOn">
+        <object class="ShortcutMenuItem" name="LinkSpeedOn">
           <label>_Speed hack</label>
           <checkable>1</checkable>
+          <activate>LinkEnabled</activate>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="LinkConfigure">
+        <object class="ShortcutMenuItem" name="LinkConfigure">
           <label>_Configure...</label>
+          <activate>LinkEnabled</activate>
+          <shortcut>0</shortcut>
         </object>
       </object>
-      <object class="wxMenu">
+
+      <!-- Options - Video -->
+      <object class="ShortcutMenu">
         <label>_Video</label>
-        <object class="wxMenuItem" name="DisplayConfigure">
+        <object class="ShortcutMenuItem" name="DisplayConfigure">
           <label>_Configure...</label>
+          <shortcut>0</shortcut>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="Fullscreen">
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="Fullscreen">
           <label>_Start in full screen</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenu">
+        <object class="ShortcutMenu">
           <label>_Scaled resize</label>
-          <object class="wxMenuItem" name="SetSize1x">
+          <object class="ShortcutMenuItem" name="SetSize1x">
             <label>_1x</label>
+            <help>Set window size to 1x</help>
           </object>
-          <object class="wxMenuItem" name="SetSize2x">
+          <object class="ShortcutMenuItem" name="SetSize2x">
             <label>_2x</label>
+            <help>Set window size to 2x</help>
           </object>
-          <object class="wxMenuItem" name="SetSize3x">
+          <object class="ShortcutMenuItem" name="SetSize3x">
             <label>_3x</label>
+            <help>Set window size to 3x</help>
           </object>
-          <object class="wxMenuItem" name="SetSize4x">
+          <object class="ShortcutMenuItem" name="SetSize4x">
             <label>_4x</label>
+            <help>Set window size to 4x</help>
           </object>
-          <object class="wxMenuItem" name="SetSize5x">
+          <object class="ShortcutMenuItem" name="SetSize5x">
             <label>_5x</label>
+            <help>Set window size to 5x</help>
           </object>
-          <object class="wxMenuItem" name="SetSize6x">
+          <object class="ShortcutMenuItem" name="SetSize6x">
             <label>_6x</label>
+            <help>Set window size to 6x</help>
           </object>
         </object>
-        <object class="wxMenuItem" name="ChangeFilter">
+        <object class="ShortcutMenuItem" name="ChangeFilter">
           <label>Change pixel filter</label>
+          <condition>NoOngoingRecording</condition>
         </object>
-        <object class="wxMenuItem" name="ChangeIFB">
+        <object class="ShortcutMenuItem" name="ChangeIFB">
           <label>Change interframe blending</label>
+          <condition>NoOngoingRecording</condition>
         </object>
-        <object class="wxMenuItem" name="RetainAspect">
+        <object class="ShortcutMenuItem" name="RetainAspect">
           <label>_Retain aspect ratio</label>
           <checkable>1</checkable>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="Bilinear">
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="Bilinear">
           <label>_Bilinear filter</label>
           <checkable>1</checkable>
         </object>
-<!--
-        <object class="wxMenuItem" name="Multithread">
+        <object class="ShortcutMenuItem" name="Multithread">
+          <!-- This is currently broken. -->
           <label>_Multithread filter</label>
           <checkable>1</checkable>
+          <activate>Never</activate>
         </object>
--->
-        <object class="separator"/>
-        <object class="wxMenuItem" name="KeepOnTop">
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="KeepOnTop">
           <label>_Keep window on top</label>
           <checkable>1</checkable>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="NoStatusMsg">
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="NoStatusMsg">
           <label>_Disable on-screen display</label>
           <checkable>1</checkable>
         </object>
-        <object class="wxMenuItem" name="Transparent">
+        <object class="ShortcutMenuItem" name="Transparent">
           <label>_Transparent on-screen display</label>
           <checkable>1</checkable>
         </object>
       </object>
-      <object class="wxMenu">
+
+      <!-- Options - Audio -->
+      <object class="ShortcutMenu">
         <label>_Audio</label>
-        <object class="wxMenuItem" name="SoundConfigure">
+        <object class="ShortcutMenuItem" name="SoundConfigure">
           <label>_Configure...</label>
+          <condition>NoOngoingRecording</condition>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="IncreaseVolume">
+        <object class="ShortcutMenuItem" name="IncreaseVolume">
           <label>_Increase volume</label>
         </object>
-        <object class="wxMenuItem" name="DecreaseVolume">
+        <object class="ShortcutMenuItem" name="DecreaseVolume">
           <label>_Decrease volume</label>
         </object>
-        <object class="wxMenuItem" name="ToggleSound">
-          <label>_Toggle sound</label>
-          <checkable>0</checkable>
+        <object class="ShortcutMenuItem" name="ToggleSound">
+          <label>_Toggle all sound channels</label>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="GBASoundInterpolation">
-          <label>_Game Boy Advance sound interpolation</label>
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="GBASoundInterpolation">
+          <label>Game Boy Advance sound _interpolation</label>
           <checkable>1</checkable>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="GBEnhanceSound">
-          <label>_Game Boy sound enhancement</label>
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="GBEnhanceSound">
+          <label>Game Boy sound _enhancement</label>
           <checkable>1</checkable>
         </object>
-        <object class="wxMenuItem" name="GBSurround">
-          <label>_Game Boy surround sound effect</label>
+        <object class="ShortcutMenuItem" name="GBSurround">
+          <label>Game Boy _surround sound effect</label>
           <checkable>1</checkable>
         </object>
-        <object class="wxMenuItem" name="GBDeclicking">
-          <label>_Game Boy sound declicking</label>
+        <object class="ShortcutMenuItem" name="GBDeclicking">
+          <label>Game Boy sound _declicking</label>
           <checkable>1</checkable>
         </object>
       </object>
-      <object class="wxMenu">
+
+      <!-- Options - Input-->
+      <object class="ShortcutMenu">
         <label>_Input</label>
-        <object class="wxMenuItem" name="JoypadConfigure">
+        <object class="ShortcutMenuItem" name="JoypadConfigure">
           <label>_Configure...</label>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="AllowKeyboardBackgroundInput">
+        <object class="ShortcutMenuItem" name="AllowKeyboardBackgroundInput">
           <label>Allow _keyboard background input</label>
           <checkable>1</checkable>
+          <activate>SupportsBackgroundKeyboardInput</activate>
         </object>
-        <object class="wxMenuItem" name="AllowJoystickBackgroundInput">
+        <object class="ShortcutMenuItem" name="AllowJoystickBackgroundInput">
           <label>Allow _joystick background input</label>
           <checkable>1</checkable>
         </object>
-        <object class="separator"/>
-        <object class="wxMenu">
+        <object class="ShortcutSeparator"/>
+
+        <!-- Options - Input - Autofire -->
+        <object class="ShortcutMenu">
           <label>_Autofire</label>
-          <object class="wxMenuItem" name="JoypadAutofireA">
+          <object class="ShortcutMenuItem" name="JoypadAutofireA">
             <label translate="0">_A</label>
             <checkable>1</checkable>
           </object>
-          <object class="wxMenuItem" name="JoypadAutofireB">
+          <object class="ShortcutMenuItem" name="JoypadAutofireB">
             <label translate="0">_B</label>
             <checkable>1</checkable>
           </object>
-          <object class="wxMenuItem" name="JoypadAutofireL">
+          <object class="ShortcutMenuItem" name="JoypadAutofireL">
             <label translate="0">_L</label>
             <checkable>1</checkable>
           </object>
-          <object class="wxMenuItem" name="JoypadAutofireR">
+          <object class="ShortcutMenuItem" name="JoypadAutofireR">
             <label translate="0">_R</label>
             <checkable>1</checkable>
           </object>
         </object>
-        <object class="wxMenu">
+
+        <!-- Options - Input - Autohold -->
+        <object class="ShortcutMenu">
           <label>_Autohold</label>
-          <object class="wxMenuItem" name="JoypadAutoholdUp">
+          <object class="ShortcutMenuItem" name="JoypadAutoholdUp">
             <label>Up</label>
             <checkable>1</checkable>
           </object>
-          <object class="wxMenuItem" name="JoypadAutoholdDown">
+          <object class="ShortcutMenuItem" name="JoypadAutoholdDown">
             <label>Down</label>
             <checkable>1</checkable>
           </object>
-          <object class="wxMenuItem" name="JoypadAutoholdLeft">
+          <object class="ShortcutMenuItem" name="JoypadAutoholdLeft">
             <label>Left</label>
             <checkable>1</checkable>
           </object>
-          <object class="wxMenuItem" name="JoypadAutoholdRight">
+          <object class="ShortcutMenuItem" name="JoypadAutoholdRight">
             <label>Right</label>
             <checkable>1</checkable>
           </object>
-          <object class="wxMenuItem" name="JoypadAutoholdA">
+          <object class="ShortcutMenuItem" name="JoypadAutoholdA">
             <label>_A</label>
             <checkable>1</checkable>
           </object>
-          <object class="wxMenuItem" name="JoypadAutoholdB">
+          <object class="ShortcutMenuItem" name="JoypadAutoholdB">
             <label>_B</label>
             <checkable>1</checkable>
           </object>
-          <object class="wxMenuItem" name="JoypadAutoholdL">
+          <object class="ShortcutMenuItem" name="JoypadAutoholdL">
             <label>_L</label>
             <checkable>1</checkable>
           </object>
-          <object class="wxMenuItem" name="JoypadAutoholdR">
+          <object class="ShortcutMenuItem" name="JoypadAutoholdR">
             <label>_R</label>
             <checkable>1</checkable>
           </object>
-          <object class="wxMenuItem" name="JoypadAutoholdSelect">
+          <object class="ShortcutMenuItem" name="JoypadAutoholdSelect">
             <label>Select</label>
             <checkable>1</checkable>
           </object>
-          <object class="wxMenuItem" name="JoypadAutoholdStart">
+          <object class="ShortcutMenuItem" name="JoypadAutoholdStart">
             <label>Start</label>
             <checkable>1</checkable>
           </object>
         </object>
       </object>
-      <object class="wxMenu">
+
+      <!-- Options - Game Boy Advance -->
+      <object class="ShortcutMenu">
         <label translate="0">_Game Boy Advance</label>
-        <object class="wxMenuItem" name="GameBoyAdvanceConfigure">
+        <object class="ShortcutMenuItem" name="GameBoyAdvanceConfigure">
           <label>Configure...</label>
+          <shortcut>0</shortcut>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="RTC">
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="RTC">
           <label>_Real-time clock</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="BootRomEn">
+        <object class="ShortcutMenuItem" name="BootRomGba">
           <label>_Use BIOS file</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="AGBPrinter">
+        <object class="ShortcutMenuItem" name="AGBPrinter">
           <label>_Debug print</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="GBALcdFilter">
+        <object class="ShortcutMenuItem" name="GBALcdFilter">
           <label>_LCD Filter</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
       </object>
-      <object class="wxMenu">
+
+      <!-- Options - Game Boy -->
+      <object class="ShortcutMenu">
         <label translate="0">_Game Boy</label>
-        <object class="wxMenuItem" name="GameBoyConfigure">
+        <object class="ShortcutMenuItem" name="GameBoyConfigure">
           <label>Configure...</label>
+          <shortcut>0</shortcut>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="GBColorOption">
-          <label>_Game Boy color option</label>
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="GBColorOption">
+          <label>Game Boy color _correction</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="GBLcdFilter">
+        <object class="ShortcutMenuItem" name="GBLcdFilter">
           <label>_LCD Filter</label>
           <checkable>1</checkable>
         </object>
-        <object class="wxMenuItem" name="ColorizerHack">
-          <label>_Game Boy Colorizer Hack (requires restart)</label>
+        <object class="ShortcutMenuItem" name="ColorizerHack">
+          <label>Game Boy Colorizer _Hack (requires restart)</label>
           <checkable>1</checkable>
-        </object>        
-        <object class="wxMenuItem" name="Printer">
-          <label>_Game Boy printer</label>
-          <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="PrintGather">
-          <label>_Gather a full page before printing</label>
+        <object class="ShortcutMenuItem" name="Printer">
+          <label>Enable Game Boy _printer</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="PrintSnap">
+        <object class="ShortcutMenuItem" name="PrintGather">
+          <label>Gather a _full page before printing</label>
+          <checkable>1</checkable>
+          <shortcut>0</shortcut>
+        </object>
+        <object class="ShortcutMenuItem" name="PrintSnap">
           <label>_Save printouts as screen captures</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="BootRomGB">
-          <label>_Use Game Boy BIOS file (requires restart)</label>
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="BootRomGB">
+          <label>Use Game Boy _BIOS file (requires restart)</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="BootRomGBC">
-          <label>_Use Game Boy Color BIOS file</label>
+        <object class="ShortcutMenuItem" name="BootRomGBC">
+          <label>_Use Game Boy Color BIOS file (requires restart)</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
       </object>
-        <object class="wxMenuItem" name="GeneralConfigure">
-          <label>_General...</label>
+
+      <!-- Options -->
+      <object class="ShortcutMenuItem" name="GeneralConfigure">
+        <label>_General...</label>
+        <shortcut>0</shortcut>
+      </object>
+      <object class="ShortcutMenuItem" name="SpeedupConfigure">
+        <label>_Speedup / Turbo...</label>
+        <shortcut>0</shortcut>
+      </object>
+      <object class="ShortcutMenuItem" name="EmulatorDirectories">
+        <label>_Directories...</label>
+        <shortcut>0</shortcut>
+      </object>
+      <object class="ShortcutMenuItem" name="Customize">
+        <label>_Key Shortcuts...</label>
+        <shortcut>0</shortcut>
+      </object>
+
+      <!-- Options - UI Settings -->
+      <object class="ShortcutMenu" name="UIConfigure">
+        <label>UI Settings</label>
+        <object class="ShortcutMenuItem" name="StatusBar">
+            <label>Enable _Status bar</label>
+            <checkable>1</checkable>
+            <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="SpeedupConfigure">
-          <label>_Speedup / Turbo...</label>
+        <object class="ShortcutMenuItem" name="HideMenuBar">
+            <label>Hide _Menu Bar</label>
+            <checkable>1</checkable>
+            <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="EmulatorDirectories">
-          <label>D_irectories...</label>
+        <object class="ShortcutMenuItem" name="SuspendScreenSaver">
+            <label>Suspend _Screen Saver</label>
+            <checkable>1</checkable>
+            <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="Customize">
-          <label>_Key Shortcuts...</label>
-        </object>
-        <object class="wxMenu" name="UIConfigure">
-          <label>UI Settings</label>
-					<object class="wxMenuItem" name="StatusBar">
-							<label>Enable _Status bar</label>
-							<checkable>1</checkable>
-					</object>
-					<object class="wxMenuItem" name="HideMenuBar">
-							<label>Hide _Menu Bar</label>
-							<checkable>1</checkable>
-					</object>
-					<object class="wxMenuItem" name="SuspendScreenSaver">
-							<label>Suspend _Screen Saver</label>
-							<checkable>1</checkable>
-					</object>
-        </object>
+      </object>
     </object>
-    <object class="wxMenu">
+
+    <object class="ShortcutMenu">
+      <!-- Tools -->
       <label>_Tools</label>
-      <object class="wxMenu">
+
+      <!-- Tools - Cheats -->
+      <object class="ShortcutMenu">
         <label>_Cheats</label>
-        <object class="wxMenuItem" name="CheatsList">
+        <object class="ShortcutMenuItem" name="CheatsList">
           <label>List _cheats...</label>
+          <condition>GameRunning</condition>
         </object>
-        <object class="wxMenuItem" name="CheatsSearch">
-          <label>Find c_heat...</label>
+        <object class="ShortcutMenuItem" name="CheatsSearch">
+          <label>_Find cheat...</label>
+          <condition>GameRunning</condition>
+          <shortcut>0</shortcut>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="CheatsAutoSaveLoad">
-          <label>A_utomatically save / load cheats</label>
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="CheatsAutoSaveLoad">
+          <label>_Automatically save / load cheats</label>
           <checkable>1</checkable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="CheatsEnable">
+        <object class="ShortcutMenuItem" name="CheatsEnable">
           <label>_Enable cheats</label>
           <checkable>1</checkable>
         </object>
       </object>
-      <object class="separator"/>
-      <object class="wxMenu" name="GDBMenu">
-        <object class="wxMenuItem" name="DebugGDBBreak">
+
+      <object class="ShortcutSeparator"/>
+
+      <!-- Tools - GDB -->
+      <object class="ShortcutMenu" name="GDBMenu">
+        <label translate="0">_GDB</label>
+        <object class="ShortcutMenuItem" name="DebugGDBBreak">
           <label>_Break into GDB</label>
+            <enable>DebuggerEnabled</enable>
+            <condition>GdbNotConnected</condition>
+          <shortcut>0</shortcut>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="DebugGDBPort">
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="DebugGDBPort">
           <label>_Configure port...</label>
+          <enable>DebuggerEnabled</enable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="wxMenuItem" name="DebugGDBBreakOnLoad">
+        <object class="ShortcutMenuItem" name="DebugGDBBreakOnLoad">
           <label>_Break on load</label>
           <checkable>1</checkable>
+          <enable>DebuggerEnabled</enable>
+          <shortcut>0</shortcut>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="DebugGDBDisconnect">
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="DebugGDBDisconnect">
           <label>_Disconnect</label>
+          <enable>DebuggerEnabled</enable>
+          <condition>GdbConnected</condition>
+          <shortcut>0</shortcut>
         </object>
-        <label translate="0">_GDB</label>
       </object>
-      <object class="wxMenuItem" name="Disassemble">
-        <label>_Disassemble...</label>
+
+      <!-- Tools - Viewers -->
+      <object class="ShortcutMenu" name="ViewersMenu">
+        <label>_Viewers</label>
+        <object class="ShortcutMenuItem" name="Disassemble">
+          <label>_Disassemble...</label>
+          <condition>GameRunning</condition>
+          <shortcut>0</shortcut>
+        </object>
+        <object class="ShortcutMenuItem" name="Logging">
+          <label>_Logging...</label>
+          <enable>GbaLoggingEnabled</enable>
+          <shortcut>0</shortcut>
+        </object>
+        <object class="ShortcutMenuItem" name="IOViewer">
+          <label>_IO Viewer...</label>
+          <condition>GBAGameRunning</condition>
+          <shortcut>0</shortcut>
+        </object>
+        <object class="ShortcutMenuItem" name="MapViewer">
+          <label>&amp;Map Viewer...</label>
+          <condition>GameRunning</condition>
+          <shortcut>0</shortcut>
+        </object>
+        <object class="ShortcutMenuItem" name="MemoryViewer">
+          <label>M_emory Viewer...</label>
+          <condition>GameRunning</condition>
+          <shortcut>0</shortcut>
+        </object>
+        <object class="ShortcutMenuItem" name="OAMViewer">
+          <label>_OAM Viewer...</label>
+          <condition>GameRunning</condition>
+          <shortcut>0</shortcut>
+        </object>
+        <object class="ShortcutMenuItem" name="PaletteViewer">
+          <label>_Palette Viewer...</label>
+          <condition>GameRunning</condition>
+          <shortcut>0</shortcut>
+        </object>
+        <object class="ShortcutMenuItem" name="TileViewer">
+          <label>_Tile Viewer...</label>
+          <condition>GameRunning</condition>
+          <shortcut>0</shortcut>
+        </object>
       </object>
-      <object class="wxMenuItem" name="Logging">
-        <label>_Logging...</label>
-      </object>
-      <object class="wxMenuItem" name="IOViewer">
-        <label>_IO Viewer...</label>
-      </object>
-      <object class="wxMenuItem" name="MapViewer">
-        <label>&amp;Map Viewer...</label>
-      </object>
-      <object class="wxMenuItem" name="MemoryViewer">
-        <label>M_emory Viewer...</label>
-      </object>
-      <object class="wxMenuItem" name="OAMViewer">
-        <label>_OAM Viewer...</label>
-      </object>
-      <object class="wxMenuItem" name="PaletteViewer">
-        <label>_Palette Viewer...</label>
-      </object>
-      <object class="wxMenuItem" name="TileViewer">
-        <label>_Tile Viewer...</label>
-      </object>
-      <object class="separator"/>
-      <object class="wxMenu">
-        <object class="wxMenuItem" name="VideoLayersReset">
+
+      <object class="ShortcutSeparator"/>
+
+      <!-- Tools - Video Layers -->
+      <object class="ShortcutMenu">
+        <label>_View Layers</label>
+        <object class="ShortcutMenuItem" name="VideoLayersReset">
           <label>Show all video layers</label>
+          <condition>GameRunning</condition>
         </object>
-        <object class="separator"/>
-        <object class="wxMenuItem" name="VideoLayersBG0">
+        <object class="ShortcutSeparator"/>
+        <object class="ShortcutMenuItem" name="VideoLayersBG0">
           <label translate="0">BG _0</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GameRunning</condition>
+          <help>Toggle BG0 layer</help>
         </object>
-        <object class="wxMenuItem" name="VideoLayersBG1">
+        <object class="ShortcutMenuItem" name="VideoLayersBG1">
           <label translate="0">BG _1</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GameRunning</condition>
+          <help>Toggle BG1 layer</help>
         </object>
-        <object class="wxMenuItem" name="VideoLayersBG2">
+        <object class="ShortcutMenuItem" name="VideoLayersBG2">
           <label translate="0">BG _2</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GameRunning</condition>
+          <help>Toggle BG2 layer</help>
         </object>
-        <object class="wxMenuItem" name="VideoLayersBG3">
+        <object class="ShortcutMenuItem" name="VideoLayersBG3">
           <label translate="0">BG _3</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GameRunning</condition>
+          <help>Toggle BG3 layer</help>
         </object>
-        <object class="wxMenuItem" name="VideoLayersOBJ">
+        <object class="ShortcutMenuItem" name="VideoLayersOBJ">
           <label translate="0">_OBJ</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GameRunning</condition>
+          <help>Toggle OBJ layer</help>
         </object>
-        <object class="wxMenuItem" name="VideoLayersWIN0">
+        <object class="ShortcutMenuItem" name="VideoLayersWIN0">
           <label translate="0">_WIN 0</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GameRunning</condition>
+          <help>Toggle WIN0 layer</help>
         </object>
-        <object class="wxMenuItem" name="VideoLayersWIN1">
+        <object class="ShortcutMenuItem" name="VideoLayersWIN1">
           <label translate="0">W_IN 1</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GameRunning</condition>
+          <help>Toggle WIN1 layer</help>
         </object>
-        <object class="wxMenuItem" name="VideoLayersOBJWIN">
+        <object class="ShortcutMenuItem" name="VideoLayersOBJWIN">
           <label translate="0">O_BJ WIN</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GameRunning</condition>
+          <help>Toggle OBJWIN layer</help>
         </object>
-        <label>_View Layers</label>
       </object>
-      <object class="wxMenu">
-        <object class="wxMenuItem" name="SoundChannel1">
+
+      <!-- Tools - Sound Channels -->
+      <object class="ShortcutMenu">
+        <label>_Sound Channels</label>
+        <object class="ShortcutMenuItem" name="SoundChannel1">
           <label>Channel _1</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GameRunning</condition>
+          <help>Toggle Sound Channel 1</help>
         </object>
-        <object class="wxMenuItem" name="SoundChannel2">
+        <object class="ShortcutMenuItem" name="SoundChannel2">
           <label>Channel _2</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GameRunning</condition>
+          <help>Toggle Sound Channel 2</help>
         </object>
-        <object class="wxMenuItem" name="SoundChannel3">
+        <object class="ShortcutMenuItem" name="SoundChannel3">
           <label>Channel _3</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GameRunning</condition>
+          <help>Toggle Sound Channel 3</help>
         </object>
-        <object class="wxMenuItem" name="SoundChannel4">
+        <object class="ShortcutMenuItem" name="SoundChannel4">
           <label>Channel _4</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GameRunning</condition>
+          <help>Toggle Sound Channel 4</help>
         </object>
-        <object class="wxMenuItem" name="DirectSoundA">
+        <object class="ShortcutMenuItem" name="DirectSoundA">
           <label>Direct Sound _A</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GBAGameRunning</condition>
+          <help>Toggle Direct Sound Channel A</help>
         </object>
-        <object class="wxMenuItem" name="DirectSoundB">
+        <object class="ShortcutMenuItem" name="DirectSoundB">
           <label>Direct Sound _B</label>
           <checkable>1</checkable>
           <checked>1</checked>
+          <condition>GBAGameRunning</condition>
+          <help>Toggle Direct Sound Channel B</help>
         </object>
-        <label>_Sound Channels</label>
       </object>
     </object>
-    <object class="wxMenu">
+
+    <object class="ShortcutMenu">
+      <!-- Help -->
       <label>_Help</label>
-      <object class="wxMenuItem" name="BugReport">
+      <object class="ShortcutMenuItem" name="BugReport">
         <label>Report _Bugs</label>
+        <shortcut>0</shortcut>
       </object>
-      <object class="wxMenuItem" name="FAQ">
+      <object class="ShortcutMenuItem" name="FAQ">
         <label>Visual Boy Advance-M Support _Forum</label>
+        <shortcut>0</shortcut>
       </object>
-      <object class="wxMenuItem" name="Translate">
+      <object class="ShortcutMenuItem" name="Translate">
         <label>Translations</label>
+        <shortcut>0</shortcut>
       </object>
-      <!-- FIXME: turn this back on when Sparkle is implemented
-      <object class="wxMenuItem" name="UpdateRDB">
+      <object class="ShortcutMenuItem" name="UpdateRDB">
+        <!-- Turn this back on when Sparkle is implemented -->
         <label>Update ROM database</label>
+        <activate>Never</activate>
+        <shortcut>0</shortcut>
       </object>
-      -->
-      <object class="wxMenuItem" name="UpdateEmu">
+      <object class="ShortcutMenuItem" name="UpdateEmu">
         <label>Check for updates</label>
+        <activate>OnlineUpdateEnabled</activate>
+        <shortcut>0</shortcut>
       </object>
-      <object class="wxMenuItem" name="FactoryReset">
+      <object class="ShortcutMenuItem" name="FactoryReset">
         <label>_Factory Reset...</label>
+        <shortcut>0</shortcut>
       </object>
-      <object class="separator"/>
-      <object class="wxMenuItem" name="wxID_ABOUT">
+      <object class="ShortcutSeparator"/>
+      <object class="ShortcutMenuItem" name="wxID_ABOUT">
         <label>_About...</label>
+        <shortcut>0</shortcut>
       </object>
     </object>
   </object>

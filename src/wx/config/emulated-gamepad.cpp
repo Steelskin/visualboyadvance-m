@@ -1,5 +1,8 @@
 #include "wx/config/emulated-gamepad.h"
 
+#include "wx/config/bindings.h"
+#include "wx/config/config-provider.h"
+
 namespace config {
 
 namespace {
@@ -58,13 +61,15 @@ inline size_t GameKeyToInt(const GameKey& game_key) {
 
 }  // namespace
 
-EmulatedGamepad::EmulatedGamepad(const BindingsProvider bindings_provider)
-    : joypads_({0, 0, 0, 0}), bindings_provider_(bindings_provider) {}
+EmulatedGamepad::EmulatedGamepad(ConfigProvider* const config_provider)
+    : joypads_({0, 0, 0, 0}), config_provider_(config_provider) {
+    assert(config_provider_);
+}
 
 bool EmulatedGamepad::OnInputPressed(const config::UserInput& user_input) {
     assert(user_input);
 
-    const auto command = bindings_provider_()->CommandForInput(user_input);
+    const auto command = config_provider_->bindings()->CommandForInput(user_input);
     if (!command || !command->is_game()) {
         // No associated game control for `user_input`.
         return false;
@@ -87,7 +92,7 @@ bool EmulatedGamepad::OnInputPressed(const config::UserInput& user_input) {
 bool EmulatedGamepad::OnInputReleased(const config::UserInput& user_input) {
     assert(user_input);
 
-    const auto command = bindings_provider_()->CommandForInput(user_input);
+    const auto command = config_provider_->bindings()->CommandForInput(user_input);
     if (!command || !command->is_game()) {
         // No associated game control for `user_input`.
         return false;

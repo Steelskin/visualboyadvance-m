@@ -9,6 +9,7 @@
 #include <wx/object.h>
 #include <wx/radiobut.h>
 #include <wx/textctrl.h>
+#include <wx/valgen.h>
 #include <wx/valnum.h>
 
 #include <wx/xrc/xmlres.h>
@@ -17,6 +18,7 @@
 #include "wx/config/option-proxy.h"
 #include "wx/config/option.h"
 #include "wx/dialogs/base-dialog.h"
+#include "wx/opts.h"
 #include "wx/rpi.h"
 #include "wx/widgets/option-validator.h"
 #include "wx/widgets/render-plugin.h"
