@@ -62,9 +62,9 @@ bool gbReadGSASnapshot(const char*);
 void setColorizerHack(bool value);
 bool allowColorizerHack(void);
 
-extern int gbHardware;
+// extern int gbHardware;
 
-extern gbCartData g_gbCartData;
+// extern gbCartData GB_CART_DATA;
 extern struct EmulatedSystem GBSystem;
 
 #endif // GB_H

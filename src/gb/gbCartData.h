@@ -1,7 +1,6 @@
 #ifndef VBAM_GB_GB_ROM_H_
 #define VBAM_GB_GB_ROM_H_
 
-#include <cassert>
 #include <cstdint>
 #include <string>
 

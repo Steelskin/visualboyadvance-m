@@ -29,12 +29,12 @@ uint8_t gbSoundRead(int st, uint16_t address)
     if (gb_apu && address >= NR10 && address <= 0xFF3F)
         return gb_apu->read_register((blip_time_t)(st * ticks_to_time), address);
 
-    return gbMemory[address];
+    return GB_EMULATOR->memory()[address];
 }
 
 void gbSoundEvent(int st, uint16_t address, int data)
 {
-    gbMemory[address] = data;
+    GB_EMULATOR->memory()[address] = data;
 
     if (gb_apu && address >= NR10 && address <= 0xFF3F)
         gb_apu->write_register((blip_time_t)(st * ticks_to_time), address, data);
@@ -102,7 +102,7 @@ void gbSoundTick(int st)
 static void reset_apu()
 {
     Gb_Apu::mode_t mode = Gb_Apu::mode_dmg;
-    if (gbHardware & 2)
+    if (GB_EMULATOR->IsCgb())
         mode = Gb_Apu::mode_cgb;
     if (gbHardware & 8 || declicking)
         mode = Gb_Apu::mode_agb;
@@ -201,7 +201,7 @@ void gbSoundReset()
         gbSoundEvent(0, 0xff26, 0xf1);
 
     /* workaround for game Beetlejuice */
-    if (gbHardware & 0x1) {
+    if (GB_EMULATOR->IsDmg()) {
         gbSoundEvent(0, 0xff24, 0x77);
         gbSoundEvent(0, 0xff25, 0xf3);
     }
@@ -209,8 +209,8 @@ void gbSoundReset()
     int addr = 0xff30;
 
     while (addr < 0xff40) {
-        gbMemory[addr++] = 0x00;
-        gbMemory[addr++] = 0xff;
+        GB_EMULATOR->memory()[addr++] = 0x00;
+        GB_EMULATOR->memory()[addr++] = 0xff;
     }
 }
 
@@ -389,9 +389,9 @@ static void gbSoundReadGameOld(int version, gzFile gzFile)
         nr10, nr11, nr12, nr21, nr22, nr30, nr32, nr42, nr43, nr50, nr51, nr52, -1
     };
     for (int i = 0; regs_to_copy[i] >= 0; i++)
-        s.regs[regs_to_copy[i]] = gbMemory[0xFF10 + regs_to_copy[i]];
+        s.regs[regs_to_copy[i]] = GB_EMULATOR->memory()[0xFF10 + regs_to_copy[i]];
 
-    memcpy(&s.regs[0x20], &gbMemory[0xFF30], 0x10); // wave
+    memcpy(&s.regs[0x20], &GB_EMULATOR->memory()[0xFF30], 0x10); // wave
 }
 #endif // ! __LIBRETRO__
 

@@ -15,6 +15,7 @@
 #include "../gba/GBALink.h"
 #include "../gba/Sound.h"
 #include "gbCheats.h"
+#include "gbEmulator.h"
 #include "gbGlobals.h"
 #include "gbMemory.h"
 #include "gbSGB.h"
@@ -113,7 +114,7 @@ bool WriteBatteryFile(const char* file_name) {
     if (g_gbBatteryError) {
         return false;
     }
-    if (!g_gbCartData.has_battery()) {
+    if (!GB_CART_DATA->has_battery()) {
         return true;
     }
 
@@ -134,7 +135,7 @@ bool WriteBatteryFile(const char* file_name) {
 
 bool ReadBatteryFile(const char* file_name) {
     systemSaveUpdateCounter = SYSTEM_SAVE_NOT_UPDATED;
-    if (!g_gbCartData.has_battery()) {
+    if (!GB_EMULATOR->cart_data()->has_battery()) {
         return false;
     }
 
@@ -244,8 +245,6 @@ static constexpr std::array<uint16_t, 0x40> kGbGbaSpPalette = {
     0xa727, 0x6266, 0xe27b, 0xe3fc, 0x1f76, 0xf158, 0x468e, 0xa540,
 };
 
-static constexpr size_t kTama5RamSize = k256B;
-
 int gbGetValue(int min, int max, int v) {
     return (int)(min + (float)(max - min) *
                            (2.0 * (v / 31.0) - (v / 31.0) * (v / 31.0)));
@@ -275,213 +274,6 @@ void gbGenFilter() {
             }
         }
     }
-}
-
-// Initializes the `g_gbCartData` variable with the data in `gbRom`, expecting a
-// size of `romSize` bytes. Returns true on success.
-bool gbInitializeRom(size_t romSize) {
-    g_gbCartData = gbCartData(gbRom, romSize);
-
-    if (!g_gbCartData) {
-        switch (g_gbCartData.validity()) {
-            case gbCartData::Validity::kValid:
-            case gbCartData::Validity::kUninitialized:
-                // Unreachable.
-                assert(false);
-                break;
-            case gbCartData::Validity::kSizeTooSmall:
-                systemMessage(MSG_UNSUPPORTED_ROM_SIZE,
-                              N_("Unsupported rom size %02x"), romSize);
-                break;
-            case gbCartData::Validity::kUnknownMapperType:
-                systemMessage(MSG_UNKNOWN_CARTRIDGE_TYPE,
-                              N_("Unknown cartridge type %02x"),
-                              g_gbCartData.mapper_flag());
-                break;
-            case gbCartData::Validity::kUnknownRomSize:
-                systemMessage(MSG_UNSUPPORTED_ROM_SIZE,
-                              N_("Unsupported rom size %02x"),
-                              g_gbCartData.rom_flag());
-                break;
-            case gbCartData::Validity::kUnknownRamSize:
-                systemMessage(MSG_UNSUPPORTED_RAM_SIZE,
-                              N_("Unsupported ram size %02x"),
-                              g_gbCartData.ram_flag());
-                break;
-            case gbCartData::Validity::kNoNintendoLogo:
-                systemMessage(MSG_INVALID_GAME_BOY_NINTENDO_LOGO,
-                              N_("No Nintendo logo in header"));
-                break;
-            case gbCartData::Validity::kInvalidHeaderChecksum:
-                systemMessage(
-                    MSG_INVALID_HEADER_CHECKSUM,
-                    N_("Invalid header checksum. Found: %02x. Expected: %02x"),
-                    g_gbCartData.header_checksum(),
-                    g_gbCartData.actual_header_checksum());
-                break;
-        }
-        g_gbCartData = gbCartData();
-        return false;
-    }
-
-    // We ignore romSize > romHeaderSize here, for backwards compatibility. This
-    // is necessary for some ROM hacks.
-    const size_t romHeaderSize = g_gbCartData.rom_size();
-    if (romSize < romHeaderSize) {
-        uint8_t* gbRomNew = (uint8_t*)realloc(gbRom, romHeaderSize);
-        if (!gbRomNew) {
-            return false;
-        };
-        gbRom = gbRomNew;
-
-        // Not sure if it's 0x00, 0xff or random data.
-        std::fill(gbRom + romSize, gbRom + romHeaderSize, (uint8_t)0);
-    }
-
-    // Override for compatibility.
-    gbRom[0x147] = g_gbCartData.mapper_flag();
-
-    // The initial RAM byte value.
-    uint8_t gbRamFill = 0xff;
-
-    switch (g_gbCartData.mapper_type()) {
-        case gbCartData::MapperType::kNone:
-        case gbCartData::MapperType::kMbc1:
-            g_mapper = mapperMBC1ROM;
-            g_mapperRAM = mapperMBC1RAM;
-            g_mapperReadRAM = mapperMBC1ReadRAM;
-            break;
-        case gbCartData::MapperType::kMbc2:
-            g_mapper = mapperMBC2ROM;
-            g_mapperRAM = mapperMBC2RAM;
-            break;
-        case gbCartData::MapperType::kMmm01:
-            g_mapper = mapperMMM01ROM;
-            g_mapperRAM = mapperMMM01RAM;
-            break;
-        case gbCartData::MapperType::kMbc3:
-        case gbCartData::MapperType::kPocketCamera:
-            g_mapper = mapperMBC3ROM;
-            g_mapperRAM = mapperMBC3RAM;
-            g_mapperReadRAM = mapperMBC3ReadRAM;
-            break;
-        case gbCartData::MapperType::kMbc5:
-            g_mapper = mapperMBC5ROM;
-            g_mapperRAM = mapperMBC5RAM;
-            g_mapperReadRAM = mapperMBC5ReadRAM;
-            break;
-        case gbCartData::MapperType::kMbc7:
-            g_mapper = mapperMBC7ROM;
-            g_mapperRAM = mapperMBC7RAM;
-            g_mapperReadRAM = mapperMBC7ReadRAM;
-            break;
-        case gbCartData::MapperType::kGameGenie:
-            // Clean-up Game Genie hardware registers.
-            for (int i = 0; i < 0x20; i++) {
-                gbRom[0x4000 + i] = 0;
-            }
-            g_mapper = mapperGGROM;
-            break;
-        case gbCartData::MapperType::kGameShark:
-            g_mapper = mapperGS3ROM;
-            break;
-        case gbCartData::MapperType::kTama5:
-            gbRamFill = 0x00;
-            if (gbTAMA5ram == nullptr) {
-                gbTAMA5ram = (uint8_t*)calloc(1, kTama5RamSize);
-                if (gbTAMA5ram == nullptr) {
-                    return false;
-                }
-            }
-
-            g_mapperRAM = mapperTAMA5RAM;
-            g_mapperReadRAM = mapperTAMA5ReadRAM;
-            g_mapperUpdateClock = memoryUpdateTAMA5Clock;
-            break;
-        case gbCartData::MapperType::kHuC3:
-            g_mapper = mapperHuC3ROM;
-            g_mapperRAM = mapperHuC3RAM;
-            g_mapperReadRAM = mapperHuC3ReadRAM;
-            break;
-        case gbCartData::MapperType::kHuC1:
-            g_mapper = mapperHuC1ROM;
-            g_mapperRAM = mapperHuC1RAM;
-            break;
-        default:
-            systemMessage(MSG_UNKNOWN_CARTRIDGE_TYPE,
-                          N_("Unknown cartridge type"));
-            return false;
-    }
-
-    // We need to explicitly reset gbRam here as the patch application process
-    // may have changed the RAM size.
-    if (gbRam != nullptr) {
-        free(gbRam);
-        gbRam = nullptr;
-    }
-
-    const size_t ramSize = g_gbCartData.ram_size();
-    if (g_gbCartData.HasRam()) {
-        // Always allocate 4 KiB to prevent access issues down the line.
-        gbRam = (uint8_t*)malloc(std::max(k4KiB, ramSize));
-        if (gbRam == nullptr) {
-            return false;
-        }
-        memset(gbRam, gbRamFill, ramSize);
-    }
-
-    gbGenFilter();
-    gbSgbInit();
-    setColorizerHack(false);
-
-#if !defined(__LIBRETRO__)
-
-    // Populate the IO vectors for battery save/load.
-    g_vbamIoVecs.clear();
-    if (g_gbCartData.has_battery()) {
-        if (g_gbCartData.HasRam()) {
-            g_vbamIoVecs.push_back({gbRam, ramSize});
-        }
-
-        switch (g_gbCartData.mapper_type()) {
-            case gbCartData::MapperType::kMbc3:
-                if (g_gbCartData.has_rtc()) {
-                    g_vbamIoVecs.push_back({&gbDataMBC3.mapperSeconds,
-                                            MBC3_RTC_DATA_SIZE, -4,
-                                            &ResetMBC3RTC});
-                }
-                break;
-            case gbCartData::MapperType::kTama5:
-                g_vbamIoVecs.push_back({gbTAMA5ram, kTama5RamSize});
-                g_vbamIoVecs.push_back({&gbDataTAMA5.mapperSeconds,
-                                        TAMA5_RTC_DATA_SIZE, -4,
-                                        &ResetTama5RTC});
-                break;
-            case gbCartData::MapperType::kHuC3:
-                g_vbamIoVecs.push_back({&gbRTCHuC3.mapperLastTime,
-                                        HUC3_RTC_DATA_SIZE, -4,
-                                        &ResetHuc3RTC});
-                break;
-            case gbCartData::MapperType::kNone:
-            case gbCartData::MapperType::kMbc1:
-            case gbCartData::MapperType::kMbc2:
-            case gbCartData::MapperType::kMbc5:
-            case gbCartData::MapperType::kMbc6:
-            case gbCartData::MapperType::kMbc7:
-            case gbCartData::MapperType::kHuC1:
-            case gbCartData::MapperType::kMmm01:
-            case gbCartData::MapperType::kPocketCamera:
-            case gbCartData::MapperType::kGameGenie:
-            case gbCartData::MapperType::kGameShark:
-            case gbCartData::MapperType::kUnknown:
-                // Do nothing more.
-                break;
-        }
-    }
-
-#endif  // !defined(__LIBRETRO__)
-
-    return true;
 }
 
 }  // namespace
@@ -560,11 +352,8 @@ int GBSYNCHRONIZE_CLOCK_TICKS = 52920;
 // state variables
 
 // general
-gbCartData g_gbCartData;
 int clockTicks = 0;
 bool gbSystemMessage = false;
-int gbGBCColorType = 0;
-int gbHardware = 0;
 int gbRemainingClockTicks = 0;
 int gbOldClockTicks = 0;
 int gbIntBreak = 0;
@@ -645,7 +434,7 @@ int gbCaptureNumber = 0;
 bool gbCapture = false;
 bool gbCapturePrevious = false;
 int gbJoymask[4] = { 0, 0, 0, 0 };
-static bool allow_colorizer_hack;
+static bool allow_colorizer_hack = false;
 
 int gbCycles[] = {
     //  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
@@ -1188,20 +977,43 @@ void setColorizerHack(bool value)
     allow_colorizer_hack = value;
 }
 
+// !GB_EMULATOR->HasCgbHw()
+// gbHardware & 0b101
+// i.e. true if color is off
+
+// !GB_EMULATOR->HasAgbHw()
+// gbHardware & 0b111
+// i.e. not agb
+
 bool allowColorizerHack(void)
 {
-    if (gbHardware & 0xA)
-        return (allow_colorizer_hack);
+    if (GB_EMULATOR->HasCgbHw()) {
+        return allow_colorizer_hack;
+    }
     return false;
 }
 
 static inline bool gbVramReadAccessValid(void)
 {
     // A lot of 'ugly' checks... But only way to emulate this particular behaviour...
-    if (allowColorizerHack()||
-        ((gbHardware & 0xa) && ((gbLcdModeDelayed != 3) || (((register_LY == 0) && (gbScreenOn == false) && (register_LCDC & 0x80)) && (gbLcdLYIncrementTicksDelayed == (GBLY_INCREMENT_CLOCK_TICKS - GBLCD_MODE_2_CLOCK_TICKS))))) ||
-        ((gbHardware & 0x5) && (gbLcdModeDelayed != 3) && ((gbLcdMode != 3) || ((register_LY == 0) && ((gbScreenOn == false) && (register_LCDC & 0x80)) && (gbLcdLYIncrementTicks == (GBLY_INCREMENT_CLOCK_TICKS - GBLCD_MODE_2_CLOCK_TICKS))))))
+    if (allowColorizerHack()) {
         return true;
+    }
+
+    if (((GB_EMULATOR->HasCgbHw()) &&
+         ((gbLcdModeDelayed != 3) ||
+          (((register_LY == 0) && (gbScreenOn == false) && (register_LCDC & 0x80)) &&
+           (gbLcdLYIncrementTicksDelayed ==
+            (GBLY_INCREMENT_CLOCK_TICKS - GBLCD_MODE_2_CLOCK_TICKS)))))) {
+        return true;
+    }
+
+    if ((!GB_EMULATOR->HasCgbHw()) && (gbLcdModeDelayed != 3) &&
+        ((gbLcdMode != 3) ||
+         ((register_LY == 0) && ((gbScreenOn == false) && (register_LCDC & 0x80)) &&
+          (gbLcdLYIncrementTicks == (GBLY_INCREMENT_CLOCK_TICKS - GBLCD_MODE_2_CLOCK_TICKS))))) {
+        return true;
+    }
     return false;
 }
 
@@ -1213,7 +1025,9 @@ static inline bool gbVramWriteAccessValid(void)
         (gbLcdModeDelayed != 3) ||
         // This part is used to emulate a small difference between hardwares
         // (check 8-in-1's arrow on GBA/GBC to verify it)
-        ((register_LY == 0) && ((gbHardware & 0xa) && (gbScreenOn == false) && (register_LCDC & 0x80)) && (gbLcdLYIncrementTicksDelayed == (GBLY_INCREMENT_CLOCK_TICKS - GBLCD_MODE_2_CLOCK_TICKS))))
+        ((register_LY == 0) &&
+         ((GB_EMULATOR->HasCgbHw()) && (gbScreenOn == false) && (register_LCDC & 0x80)) &&
+         (gbLcdLYIncrementTicksDelayed == (GBLY_INCREMENT_CLOCK_TICKS - GBLCD_MODE_2_CLOCK_TICKS))))
         return true;
     return false;
 }
@@ -1282,7 +1096,7 @@ void gbDoHdma()
     register_HDMA3 = gbHdmaDestination >> 8;
 
     gbHdmaBytes -= 0x10;
-    gbMemory[0xff55] = --register_HDMA5;
+    GB_EMULATOR->memory()[0xff55] = --register_HDMA5;
     if (register_HDMA5 == 0xff)
         gbHdmaOn = 0;
 
@@ -1373,31 +1187,34 @@ void gbWriteMemory(uint16_t address, uint8_t value)
 
     // OAM not accessible during mode 2 & 3.
     if (address < 0xfea0) {
-        if (((gbHardware & 0xa) && ((gbLcdMode | gbLcdModeDelayed) & 2)) || ((gbHardware & 5) && (((gbLcdModeDelayed == 2) && (gbLcdTicksDelayed <= GBLCD_MODE_2_CLOCK_TICKS)) || (gbLcdModeDelayed == 3))))
+        if (((GB_EMULATOR->HasCgbHw()) && ((gbLcdMode | gbLcdModeDelayed) & 2)) ||
+            ((!GB_EMULATOR->HasCgbHw()) &&
+             (((gbLcdModeDelayed == 2) && (gbLcdTicksDelayed <= GBLCD_MODE_2_CLOCK_TICKS)) ||
+              (gbLcdModeDelayed == 3))))
             return;
         else {
-            gbMemory[address] = value;
+            GB_EMULATOR->memory()[address] = value;
             return;
         }
     }
 
     if ((address > 0xfea0) && (address < 0xff00)) { // GBC allows reading/writing to that area
-        gbMemory[address] = value;
+        GB_EMULATOR->memory()[address] = value;
         return;
     }
 
     switch (address & 0x00ff) {
 
     case 0x00: {
-        gbMemory[0xff00] = ((gbMemory[0xff00] & 0xcf) | (value & 0x30) | 0xc0);
-        if (gbSgbMode) {
+        GB_EMULATOR->memory()[0xff00] = ((GB_EMULATOR->memory()[0xff00] & 0xcf) | (value & 0x30) | 0xc0);
+        if (GB_EMULATOR->HasSgbHw()) {
             gbSgbDoBitTransfer(value);
         }
         return;
     }
 
     case 0x01: {
-        gbMemory[0xff01] = value;
+        GB_EMULATOR->memory()[0xff01] = value;
         return;
     }
 
@@ -1406,11 +1223,11 @@ void gbWriteMemory(uint16_t address, uint8_t value)
         gbSerialOn = (value & 0x80);
 #ifndef NO_LINK
         //trying to detect whether the game has exited multiplay mode, pokemon blue start w/ 0x7e while pocket racing start w/ 0x7c
-        if (EmuReseted || (gbMemory[0xff02] & 0x7c) || (value & 0x7c) || (!(value & 0x81))) {
+        if (EmuReseted || (GB_EMULATOR->memory()[0xff02] & 0x7c) || (value & 0x7c) || (!(value & 0x81))) {
             LinkFirstTime = true;
         }
         EmuReseted = false;
-        gbMemory[0xff02] = value;
+        GB_EMULATOR->memory()[0xff02] = value;
         if (gbSerialOn && (GetLinkMode() == LINK_GAMEBOY_IPC || GetLinkMode() == LINK_GAMEBOY_SOCKET
         || GetLinkMode() == LINK_DISCONNECTED || coreOptions.winGbPrinterEnabled)) {
 
@@ -1423,24 +1240,24 @@ void gbWriteMemory(uint16_t address, uint8_t value)
             if ((value & 1)) { //internal clock
                 if (gbSerialFunction) {
                     gbSIO_SC = value;
-                    gbMemory[0xff01] = gbSerialFunction(gbMemory[0xff01]); //gbSerialFunction/gbStartLink/gbPrinter
+                    GB_EMULATOR->memory()[0xff01] = gbSerialFunction(GB_EMULATOR->memory()[0xff01]); //gbSerialFunction/gbStartLink/gbPrinter
                 } else
-                    gbMemory[0xff01] = 0xff;
-                gbMemory[0xff02] &= 0x7f;
+                    GB_EMULATOR->memory()[0xff01] = 0xff;
+                GB_EMULATOR->memory()[0xff02] &= 0x7f;
                 gbSerialOn = 0;
-                gbMemory[0xff0f] = register_IF |= 8;
+                GB_EMULATOR->memory()[0xff0f] = register_IF |= 8;
             }
 #ifdef OLD_GB_LINK
             if (linkConnected) {
                 if (value & 1) {
-                    linkSendByte(0x100 | gbMemory[0xFF01]);
+                    linkSendByte(0x100 | GB_EMULATOR->memory()[0xFF01]);
                     Sleep(5);
                 }
             }
 #endif
         }
 #else
-        gbMemory[0xff02] = value;
+        GB_EMULATOR->memory()[0xff02] = value;
         if (gbSerialOn)
             gbSerialTicks = GBSERIAL_CLOCK_TICKS;
 #endif
@@ -1451,33 +1268,33 @@ void gbWriteMemory(uint16_t address, uint8_t value)
     case 0x04: {
         // DIV register resets on any write
         // (not totally perfect, but better than nothing)
-        gbMemory[0xff04] = register_DIV = 0;
+        GB_EMULATOR->memory()[0xff04] = register_DIV = 0;
         gbDivTicks = GBDIV_CLOCK_TICKS;
         // Another weird timer 'bug' :
         // Writing to DIV register resets the internal timer,
         // and can also increase TIMA/trigger an interrupt
         // in some cases...
         if (gbTimerOn && !(gbInternalTimer & (gbTimerClockTicks >> 1))) {
-            gbMemory[0xff05] = ++register_TIMA;
+            GB_EMULATOR->memory()[0xff05] = ++register_TIMA;
             if (register_TIMA == 0) {
                 // timer overflow!
 
                 // reload timer modulo
-                gbMemory[0xff05] = register_TIMA = register_TMA;
+                GB_EMULATOR->memory()[0xff05] = register_TIMA = register_TMA;
 
                 // flag interrupt
-                gbMemory[0xff0f] = register_IF |= 4;
+                GB_EMULATOR->memory()[0xff0f] = register_IF |= 4;
             }
         }
         gbInternalTimer = 0xff;
         return;
     }
     case 0x05:
-        gbMemory[0xff05] = register_TIMA = value;
+        GB_EMULATOR->memory()[0xff05] = register_TIMA = value;
         return;
 
     case 0x06:
-        gbMemory[0xff06] = register_TMA = value;
+        GB_EMULATOR->memory()[0xff06] = register_TMA = value;
         return;
 
     // TIMER control
@@ -1539,25 +1356,25 @@ void gbWriteMemory(uint16_t address, uint8_t value)
             }
 
             if (temp) {
-                gbMemory[0xff05] = ++register_TIMA;
+                GB_EMULATOR->memory()[0xff05] = ++register_TIMA;
                 if ((register_TIMA & 0xff) == 0) {
                     // timer overflow!
 
                     // reload timer modulo
-                    gbMemory[0xff05] = register_TIMA = register_TMA;
+                    GB_EMULATOR->memory()[0xff05] = register_TIMA = register_TMA;
 
                     // flag interrupt
-                    gbMemory[0xff0f] = register_IF |= 4;
+                    GB_EMULATOR->memory()[0xff0f] = register_IF |= 4;
                 }
             }
         }
-        gbMemory[0xff07] = register_TAC = value;
+        GB_EMULATOR->memory()[0xff07] = register_TAC = value;
         return;
     }
 
     case 0x0f: {
-        gbMemory[0xff0f] = register_IF = value;
-        //gbMemory[0xff0f] = register_IE |= value;
+        GB_EMULATOR->memory()[0xff0f] = register_IF = value;
+        //GB_EMULATOR->memory()[0xff0f] = register_IE |= value;
         return;
     }
 
@@ -1611,7 +1428,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
     case 0x3f:
         // Sound registers handled by blargg
         gbSoundEvent(soundTicks, address, value);
-        //gbMemory[address] = value;
+        // GB_EMULATOR->memory()[address] = value;
         return;
 
     case 0x40: {
@@ -1626,7 +1443,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
         else if (!(register_LCDC & 0x20) && (value & 0x20) && (register_LY == register_WY))
             gbWindowLine = -2;
 
-        gbMemory[0xff40] = register_LCDC = value;
+        GB_EMULATOR->memory()[0xff40] = register_LCDC = value;
 
         if (lcdChange) {
             if ((value & 0x80) && (!register_LCDCBusy)) {
@@ -1643,8 +1460,8 @@ void gbWriteMemory(uint16_t address, uint8_t value)
                 gbLcdLYIncrementTicksDelayed = GBLY_INCREMENT_CLOCK_TICKS - (gbSpeed ? 1 : 0);
                 gbLcdMode = 2;
                 gbLcdModeDelayed = 2;
-                gbMemory[0xff41] = register_STAT = (register_STAT & 0xfc) | 2;
-                gbMemory[0xff44] = register_LY = 0x00;
+                GB_EMULATOR->memory()[0xff41] = register_STAT = (register_STAT & 0xfc) | 2;
+                GB_EMULATOR->memory()[0xff44] = register_LY = 0x00;
                 gbInt48Signal = 0;
                 gbLYChangeHappened = false;
                 gbLCDChangeHappened = false;
@@ -1656,7 +1473,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
                 if (register_STAT & 0x20) {
                     // send LCD interrupt only if no interrupt 48h signal...
                     if (!gbInt48Signal) {
-                        gbMemory[0xff0f] = register_IF |= 2;
+                        GB_EMULATOR->memory()[0xff0f] = register_IF |= 2;
                     }
                     gbInt48Signal |= 4;
                 }
@@ -1678,7 +1495,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
                 gbLcdTicks = 0;
                 gbLcdMode = 0;
                 gbLcdModeDelayed = 0;
-                gbMemory[0xff41] = register_STAT &= 0xfc;
+                GB_EMULATOR->memory()[0xff41] = register_STAT &= 0xfc;
                 gbInt48Signal = 0;
             }
         }
@@ -1689,7 +1506,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
     case 0x41: {
         //register_STAT = (register_STAT & 0x87) |
         //      (value & 0x7c);
-        gbMemory[0xff41] = register_STAT = (value & 0xf8) | (register_STAT & 0x07); // fix ?
+        GB_EMULATOR->memory()[0xff41] = register_STAT = (value & 0xf8) | (register_STAT & 0x07); // fix ?
         // TODO:
         // GB bug from Devrs FAQ
         // http://www.devrs.com/gb/files/faqs.html#GBBugs
@@ -1703,13 +1520,13 @@ void gbWriteMemory(uint16_t address, uint8_t value)
         // - Zerg no Densetsu: crash right after showing a small portion of intro
         // - 2019-07-18 - Speedy Gonzalez status bar relies on this as well.
 
-        if ((gbHardware & 5)
+        if ((!GB_EMULATOR->HasCgbHw())
             && (((!gbInt48Signal) && (gbLcdMode < 2) && (register_LCDC & 0x80))
             || (register_LY == register_LYC))) {
 
             // send LCD interrupt only if no interrupt 48h signal...
             if (!gbInt48Signal)
-                gbMemory[0xff0f] = register_IF |= 2;
+                GB_EMULATOR->memory()[0xff0f] = register_IF |= 2;
         }
 
         gbInt48Signal &= ((register_STAT >> 3) & 0xF);
@@ -1717,26 +1534,26 @@ void gbWriteMemory(uint16_t address, uint8_t value)
         if ((register_LCDC & 0x80)) {
             if ((register_STAT & 0x08) && (gbLcdMode == 0)) {
                 if (!gbInt48Signal) {
-                    gbMemory[0xff0f] = register_IF |= 2;
+                    GB_EMULATOR->memory()[0xff0f] = register_IF |= 2;
                 }
                 gbInt48Signal |= 1;
             }
             if ((register_STAT & 0x10) && (gbLcdMode == 1)) {
                 if (!gbInt48Signal) {
-                    gbMemory[0xff0f] = register_IF |= 2;
+                    GB_EMULATOR->memory()[0xff0f] = register_IF |= 2;
                 }
                 gbInt48Signal |= 2;
             }
             if ((register_STAT & 0x20) && (gbLcdMode == 2)) {
                 if (!gbInt48Signal) {
-                    gbMemory[0xff0f] = register_IF |= 2;
+                    GB_EMULATOR->memory()[0xff0f] = register_IF |= 2;
                 }
                 //gbInt48Signal |= 4;
             }
             gbCompareLYToLYC();
 
-            gbMemory[0xff0f] = register_IF;
-            gbMemory[0xff41] = register_STAT;
+            GB_EMULATOR->memory()[0xff0f] = register_IF;
+            GB_EMULATOR->memory()[0xff41] = register_STAT;
         }
         return;
     }
@@ -1757,7 +1574,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
         else
             memset(gbSCYLine, value, sizeof(gbSCYLine));
 
-        gbMemory[0xff42] = register_SCY = value;
+        GB_EMULATOR->memory()[0xff42] = register_SCY = value;
         return;
     }
 
@@ -1777,7 +1594,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
         else
             memset(gbSCXLine, value, sizeof(gbSCXLine));
 
-        gbMemory[0xff43] = register_SCX = value;
+        GB_EMULATOR->memory()[0xff43] = register_SCX = value;
         return;
     }
 
@@ -1790,7 +1607,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
     // LYC
     case 0x45: {
         if (register_LYC != value) {
-            gbMemory[0xff45] = register_LYC = value;
+            GB_EMULATOR->memory()[0xff45] = register_LYC = value;
             if (register_LCDC & 0x80) {
                 gbCompareLYToLYC();
             }
@@ -1805,7 +1622,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
         gbCopyMemory(0xfe00,
             source,
             0xa0);
-        gbMemory[0xff46] = register_DMA = value;
+        GB_EMULATOR->memory()[0xff46] = register_DMA = value;
         return;
     }
 
@@ -1814,7 +1631,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
 
         int temp = -1;
 
-        gbMemory[0xff47] = value;
+        GB_EMULATOR->memory()[0xff47] = value;
 
         if (gbLcdModeDelayed == 3)
             temp = ((GBLY_INCREMENT_CLOCK_TICKS - GBLCD_MODE_2_CLOCK_TICKS) - gbLcdLYIncrementTicksDelayed);
@@ -1837,7 +1654,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
     case 0x48: {
         int temp = -1;
 
-        gbMemory[0xff48] = value;
+        GB_EMULATOR->memory()[0xff48] = value;
 
         if (gbLcdModeDelayed == 3)
             temp = ((GBLY_INCREMENT_CLOCK_TICKS - GBLCD_MODE_2_CLOCK_TICKS) - gbLcdLYIncrementTicksDelayed);
@@ -1860,7 +1677,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
     case 0x49: {
         int temp = -1;
 
-        gbMemory[0xff49] = value;
+        GB_EMULATOR->memory()[0xff49] = value;
 
         if (gbLcdModeDelayed == 3)
             temp = ((GBLY_INCREMENT_CLOCK_TICKS - GBLCD_MODE_2_CLOCK_TICKS) - gbLcdLYIncrementTicksDelayed);
@@ -1881,7 +1698,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
 
     // WY
     case 0x4a:
-        gbMemory[0xff4a] = register_WY = value;
+        GB_EMULATOR->memory()[0xff4a] = register_WY = value;
         if ((register_LY <= register_WY) && ((gbWindowLine < 0) || (gbWindowLine >= (int)kGBHeight))) {
             gbWindowLine = -1;
             oldRegister_WY = register_WY;
@@ -1890,27 +1707,27 @@ void gbWriteMemory(uint16_t address, uint8_t value)
 
     // WX
     case 0x4b:
-        gbMemory[0xff4b] = register_WX = value;
+        GB_EMULATOR->memory()[0xff4b] = register_WX = value;
         return;
 
     // KEY1
     case 0x4d: {
-        if (gbCgbMode) {
-            gbMemory[0xff4d] = (gbMemory[0xff4d] & 0x80) | (value & 1) | 0x7e;
+        if (GB_EMULATOR->HasCgbHw()) {
+            GB_EMULATOR->memory()[0xff4d] = (GB_EMULATOR->memory()[0xff4d] & 0x80) | (value & 1) | 0x7e;
             return;
         }
     } break;
 
     // VBK
     case 0x4f: {
-        if (gbCgbMode) {
+        if (GB_EMULATOR->HasCgbHw()) {
             value = value & 1;
             if (value == gbVramBank)
                 return;
 
             int vramAddress = value * 0x2000;
-            gbMemoryMap[0x08] = &gbVram[vramAddress];
-            gbMemoryMap[0x09] = &gbVram[vramAddress + 0x1000];
+            gbMemoryMap[0x08] = &GB_EMULATOR->vram()[vramAddress];
+            gbMemoryMap[0x09] = &GB_EMULATOR->vram()[vramAddress + 0x1000];
 
             gbVramBank = value;
             register_VBK = value;
@@ -1918,12 +1735,12 @@ void gbWriteMemory(uint16_t address, uint8_t value)
         return;
     } break;
 
-    // BOOTROM disable register (also gbCgbMode enabler if value & 0x10 ?)
+    // BOOTROM disable register (also GB_EMULATOR->HasCgbHw() enabler if value & 0x10 ?)
     case 0x50: {
         if (inBios && (value & 1)) {
-            gbMemoryMap[0x00] = &gbRom[0x0000];
-            if (gbHardware & 5) {
-                memcpy((uint8_t*)(gbRom + 0x100), (uint8_t*)(gbMemory + 0x100), 0xF00);
+            gbMemoryMap[0x00] = &GB_EMULATOR->rom()[0x0000];
+            if (!GB_EMULATOR->HasCgbHw()) {
+                memcpy((uint8_t*)(&GB_EMULATOR->rom()[0x100]), (uint8_t*)(&GB_EMULATOR->memory()[0x100]), 0xF00);
             }
             inBios = false;
         }
@@ -1931,7 +1748,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
 
     // HDMA1
     case 0x51: {
-        if (gbCgbMode) {
+        if (GB_EMULATOR->HasCgbHw()) {
             if (value > 0x7f && value < 0xa0)
                 value = 0;
 
@@ -1944,7 +1761,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
 
     // HDMA2
     case 0x52: {
-        if (gbCgbMode) {
+        if (GB_EMULATOR->HasCgbHw()) {
             value = value & 0xf0;
 
             gbHdmaSource = (gbHdmaSource & 0xff00) | (value);
@@ -1956,7 +1773,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
 
     // HDMA3
     case 0x53: {
-        if (gbCgbMode) {
+        if (GB_EMULATOR->HasCgbHw()) {
             value = value & 0x1f;
             gbHdmaDestination = (value << 8) | (gbHdmaDestination & 0xf0);
             gbHdmaDestination |= 0x8000;
@@ -1967,7 +1784,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
 
     // HDMA4
     case 0x54: {
-        if (gbCgbMode) {
+        if (GB_EMULATOR->HasCgbHw()) {
             value = value & 0xf0;
             gbHdmaDestination = (gbHdmaDestination & 0x1f00) | value;
             gbHdmaDestination |= 0x8000;
@@ -1979,11 +1796,11 @@ void gbWriteMemory(uint16_t address, uint8_t value)
     // HDMA5
     case 0x55: {
 
-        if (gbCgbMode) {
+        if (GB_EMULATOR->HasCgbHw()) {
             gbHdmaBytes = 16 + (value & 0x7f) * 16;
             if (gbHdmaOn) {
                 if (value & 0x80) {
-                    gbMemory[0xff55] = register_HDMA5 = (value & 0x7f);
+                    GB_EMULATOR->memory()[0xff55] = register_HDMA5 = (value & 0x7f);
                 } else {
                     register_HDMA5 = 0xff;
                     gbHdmaOn = 0;
@@ -1991,7 +1808,7 @@ void gbWriteMemory(uint16_t address, uint8_t value)
             } else {
                 if (value & 0x80) {
                     gbHdmaOn = 1;
-                    gbMemory[0xff55] = register_HDMA5 = value & 0x7f;
+                    GB_EMULATOR->memory()[0xff55] = register_HDMA5 = value & 0x7f;
                     if (gbLcdModeDelayed == 0)
                         gbDoHdma();
                 } else {
@@ -2010,11 +1827,11 @@ void gbWriteMemory(uint16_t address, uint8_t value)
                     gbHdmaDestination += gbHdmaBytes;
                     gbHdmaSource += gbHdmaBytes;
 
-                    gbMemory[0xff51] = register_HDMA1 = 0xff; // = (gbHdmaSource >> 8) & 0xff;
-                    gbMemory[0xff52] = register_HDMA2 = 0xff; // = gbHdmaSource & 0xf0;
-                    gbMemory[0xff53] = register_HDMA3 = 0xff; // = ((gbHdmaDestination - 0x8000) >> 8) & 0x1f;
-                    gbMemory[0xff54] = register_HDMA4 = 0xff; // = gbHdmaDestination & 0xf0;
-                    gbMemory[0xff55] = register_HDMA5 = 0xff;
+                    GB_EMULATOR->memory()[0xff51] = register_HDMA1 = 0xff; // = (gbHdmaSource >> 8) & 0xff;
+                    GB_EMULATOR->memory()[0xff52] = register_HDMA2 = 0xff; // = gbHdmaSource & 0xf0;
+                    GB_EMULATOR->memory()[0xff53] = register_HDMA3 = 0xff; // = ((gbHdmaDestination - 0x8000) >> 8) & 0x1f;
+                    GB_EMULATOR->memory()[0xff54] = register_HDMA4 = 0xff; // = gbHdmaDestination & 0xf0;
+                    GB_EMULATOR->memory()[0xff55] = register_HDMA5 = 0xff;
                 }
             }
             return;
@@ -2023,34 +1840,34 @@ void gbWriteMemory(uint16_t address, uint8_t value)
 
     // BCPS
     case 0x68: {
-        if (gbCgbMode) {
+        if (GB_EMULATOR->HasCgbHw()) {
             int paletteIndex = (value & 0x3f) >> 1;
             int paletteHiLo = (value & 0x01);
 
-            gbMemory[0xff68] = value;
+            GB_EMULATOR->memory()[0xff68] = value;
 
-            gbMemory[0xff69] = (paletteHiLo ? (gbPalette[paletteIndex] >> 8) : (gbPalette[paletteIndex] & 0x00ff));
+            GB_EMULATOR->memory()[0xff69] = (paletteHiLo ? (gbPalette[paletteIndex] >> 8) : (gbPalette[paletteIndex] & 0x00ff));
             return;
         }
     } break;
 
     // BCPD
     case 0x69: {
-        if (gbCgbMode) {
-            int v = gbMemory[0xff68];
+        if (GB_EMULATOR->HasCgbHw()) {
+            int v = GB_EMULATOR->memory()[0xff68];
             int paletteIndex = (v & 0x3f) >> 1;
             int paletteHiLo = (v & 0x01);
 
             if (gbCgbPaletteAccessValid()) {
-                gbMemory[0xff69] = value;
+                GB_EMULATOR->memory()[0xff69] = value;
                 gbPalette[paletteIndex] = (paletteHiLo ? ((value << 8) | (gbPalette[paletteIndex] & 0xff)) : ((gbPalette[paletteIndex] & 0xff00) | (value))) & 0x7fff;
             }
 
-            if (gbMemory[0xff68] & 0x80) {
-                int index = ((gbMemory[0xff68] & 0x3f) + 1) & 0x3f;
+            if (GB_EMULATOR->memory()[0xff68] & 0x80) {
+                int index = ((GB_EMULATOR->memory()[0xff68] & 0x3f) + 1) & 0x3f;
 
-                gbMemory[0xff68] = (gbMemory[0xff68] & 0x80) | index;
-                gbMemory[0xff69] = (index & 1 ? (gbPalette[index >> 1] >> 8) : (gbPalette[index >> 1] & 0x00ff));
+                GB_EMULATOR->memory()[0xff68] = (GB_EMULATOR->memory()[0xff68] & 0x80) | index;
+                GB_EMULATOR->memory()[0xff69] = (index & 1 ? (gbPalette[index >> 1] >> 8) : (gbPalette[index >> 1] & 0x00ff));
             }
             return;
         }
@@ -2058,15 +1875,15 @@ void gbWriteMemory(uint16_t address, uint8_t value)
 
     // OCPS
     case 0x6a: {
-        if (gbCgbMode) {
+        if (GB_EMULATOR->HasCgbHw()) {
             int paletteIndex = (value & 0x3f) >> 1;
             int paletteHiLo = (value & 0x01);
 
             paletteIndex += 32;
 
-            gbMemory[0xff6a] = value;
+            GB_EMULATOR->memory()[0xff6a] = value;
 
-            gbMemory[0xff6b] = (paletteHiLo ? (gbPalette[paletteIndex] >> 8) : (gbPalette[paletteIndex] & 0x00ff));
+            GB_EMULATOR->memory()[0xff6b] = (paletteHiLo ? (gbPalette[paletteIndex] >> 8) : (gbPalette[paletteIndex] & 0x00ff));
             return;
         }
     } break;
@@ -2074,37 +1891,37 @@ void gbWriteMemory(uint16_t address, uint8_t value)
     // OCPD
     case 0x6b: {
 
-        if (gbCgbMode) {
-            int v = gbMemory[0xff6a];
+        if (GB_EMULATOR->HasCgbHw()) {
+            int v = GB_EMULATOR->memory()[0xff6a];
             int paletteIndex = (v & 0x3f) >> 1;
             int paletteHiLo = (v & 0x01);
 
             paletteIndex += 32;
 
             if (gbCgbPaletteAccessValid()) {
-                gbMemory[0xff6b] = value;
+                GB_EMULATOR->memory()[0xff6b] = value;
                 gbPalette[paletteIndex] = (paletteHiLo ? ((value << 8) | (gbPalette[paletteIndex] & 0xff)) : ((gbPalette[paletteIndex] & 0xff00) | (value))) & 0x7fff;
             }
 
-            if (gbMemory[0xff6a] & 0x80) {
-                int index = ((gbMemory[0xff6a] & 0x3f) + 1) & 0x3f;
+            if (GB_EMULATOR->memory()[0xff6a] & 0x80) {
+                int index = ((GB_EMULATOR->memory()[0xff6a] & 0x3f) + 1) & 0x3f;
 
-                gbMemory[0xff6a] = (gbMemory[0xff6a] & 0x80) | index;
+                GB_EMULATOR->memory()[0xff6a] = (GB_EMULATOR->memory()[0xff6a] & 0x80) | index;
 
-                gbMemory[0xff6b] = (index & 1 ? (gbPalette[(index >> 1) + 32] >> 8) : (gbPalette[(index >> 1) + 32] & 0x00ff));
+                GB_EMULATOR->memory()[0xff6b] = (index & 1 ? (gbPalette[(index >> 1) + 32] >> 8) : (gbPalette[(index >> 1) + 32] & 0x00ff));
             }
             return;
         }
     } break;
 
     case 0x6c: {
-        gbMemory[0xff6c] = 0xfe | value;
+        GB_EMULATOR->memory()[0xff6c] = 0xfe | value;
         return;
     }
 
     // SVBK
     case 0x70: {
-        if (gbCgbMode) {
+        if (GB_EMULATOR->HasCgbHw()) {
             value = value & 7;
 
             int bank = value;
@@ -2115,31 +1932,31 @@ void gbWriteMemory(uint16_t address, uint8_t value)
                 return;
 
             int wramAddress = bank * 0x1000;
-            gbMemoryMap[0x0d] = &gbWram[wramAddress];
+            gbMemoryMap[0x0d] = &GB_EMULATOR->wram()[wramAddress];
 
             gbWramBank = bank;
-            gbMemory[0xff70] = register_SVBK = value;
+            GB_EMULATOR->memory()[0xff70] = register_SVBK = value;
             return;
         }
     } break;
 
     case 0x75: {
-        gbMemory[0xff75] = 0x8f | value;
+        GB_EMULATOR->memory()[0xff75] = 0x8f | value;
         return;
     }
 
     case 0xff: {
-        gbMemory[0xffff] = register_IE = value;
+        GB_EMULATOR->memory()[0xffff] = register_IE = value;
         return;
     }
     }
 
     if (address < 0xff80) {
-        gbMemory[address] = value;
+        GB_EMULATOR->memory()[address] = value;
         return;
     }
 
-    gbMemory[address] = value;
+    GB_EMULATOR->memory()[address] = value;
 }
 
 uint8_t gbReadMemory(uint16_t address)
@@ -2172,7 +1989,7 @@ uint8_t gbReadMemory(uint16_t address)
         // for the 2kb ram limit (fixes crash in shawu's story
         // but now its sram test fails, as the it expects 8kb and not 2kb...
         // So use the 'genericflashcard' option to fix it).
-        if (address <= (0xa000 + g_gbCartData.ram_mask())) {
+        if (address <= (0xa000 + GB_CART_DATA->ram_mask())) {
             if (g_mapperReadRAM) {
                 return g_mapperReadRAM(address);
             }
@@ -2184,18 +2001,18 @@ uint8_t gbReadMemory(uint16_t address)
     if (address >= 0xff00) {
         switch (address & 0x00ff) {
         case 0x00: {
-            if (gbSgbMode) {
+            if (GB_EMULATOR->HasSgbHw()) {
                 gbSgbReadingController |= 4;
                 gbSgbResetPacketState();
             }
 
-            int b = gbMemory[0xff00];
+            int b = GB_EMULATOR->memory()[0xff00];
 
             if ((b & 0x30) == 0x20) {
                 b &= 0xf0;
 
                 int joy = 0;
-                if (gbSgbMode && gbSgbMultiplayer) {
+                if (GB_EMULATOR->HasSgbHw() && gbSgbMultiplayer) {
                     switch (gbSgbNextController) {
                     case 0x0f:
                         joy = 0;
@@ -2223,12 +2040,12 @@ uint8_t gbReadMemory(uint16_t address)
                 if (!(joystate & 16))
                     b |= 0x01;
 
-                gbMemory[0xff00] = b;
+                GB_EMULATOR->memory()[0xff00] = b;
             } else if ((b & 0x30) == 0x10) {
                 b &= 0xf0;
 
                 int joy = 0;
-                if (gbSgbMode && gbSgbMultiplayer) {
+                if (GB_EMULATOR->HasSgbHw() && gbSgbMultiplayer) {
                     switch (gbSgbNextController) {
                     case 0x0f:
                         joy = 0;
@@ -2256,21 +2073,21 @@ uint8_t gbReadMemory(uint16_t address)
                 if (!(joystate & 1))
                     b |= 0x01;
 
-                gbMemory[0xff00] = b;
+                GB_EMULATOR->memory()[0xff00] = b;
             } else {
-                if (gbSgbMode && gbSgbMultiplayer) {
-                    gbMemory[0xff00] = 0xf0 | gbSgbNextController;
+                if (GB_EMULATOR->HasSgbHw() && gbSgbMultiplayer) {
+                    GB_EMULATOR->memory()[0xff00] = 0xf0 | gbSgbNextController;
                 } else {
-                    gbMemory[0xff00] = 0xff;
+                    GB_EMULATOR->memory()[0xff00] = 0xff;
                 }
             }
         }
-            return gbMemory[0xff00];
+            return GB_EMULATOR->memory()[0xff00];
             break;
         case 0x01:
-            return gbMemory[0xff01];
+            return GB_EMULATOR->memory()[0xff01];
         case 0x02:
-            return (gbMemory[0xff02]);
+            return (GB_EMULATOR->memory()[0xff02]);
         case 0x03:
             log("Undocumented Memory register read %04x PC=%04x\n",
                 address,
@@ -2296,7 +2113,7 @@ uint8_t gbReadMemory(uint16_t address)
                 PC.W);
             return 0xff;
         case 0x0f:
-            return (0xe0 | gbMemory[0xff0f]);
+            return (0xe0 | GB_EMULATOR->memory()[0xff0f]);
         case 0x10:
         case 0x11:
         case 0x12:
@@ -2351,16 +2168,16 @@ uint8_t gbReadMemory(uint16_t address)
             return register_LCDC;
         case 0x41:
             // This is a GB/C only bug (ie. not GBA/SP).
-            if ((gbHardware & 7) && (gbLcdMode == 2) && (gbLcdModeDelayed == 1) && (!gbSpeed))
-                return (0x80 | (gbMemory[0xff41] & 0xFC));
+            if ((!GB_EMULATOR->HasAgbHw()) && (gbLcdMode == 2) && (gbLcdModeDelayed == 1) && (!gbSpeed))
+                return (0x80 | (GB_EMULATOR->memory()[0xff41] & 0xFC));
             else
-                return (0x80 | gbMemory[0xff41]);
+                return (0x80 | GB_EMULATOR->memory()[0xff41]);
         case 0x42:
             return register_SCY;
         case 0x43:
             return register_SCX;
         case 0x44:
-            if (((gbHardware & 7) && ((gbLcdMode == 1) && (gbLcdTicks == 0x71))) || (!(register_LCDC & 0x80)))
+            if (((!GB_EMULATOR->HasAgbHw()) && ((gbLcdMode == 1) && (gbLcdTicks == 0x71))) || (!(register_LCDC & 0x80)))
                     return 0;
             else
                 return register_LY;
@@ -2388,21 +2205,21 @@ uint8_t gbReadMemory(uint16_t address)
             return register_HDMA5;
         case 0x68:
         case 0x6a:
-            if (gbCgbMode)
-                return (0x40 | gbMemory[address]);
+            if (GB_EMULATOR->HasCgbHw())
+                return (0x40 | GB_EMULATOR->memory()[address]);
             else
                 return 0xc0;
         case 0x69:
         case 0x6b:
-            if (gbCgbMode) {
+            if (GB_EMULATOR->HasCgbHw()) {
                 if (gbCgbPaletteAccessValid())
-                    return (gbMemory[address]);
+                    return (GB_EMULATOR->memory()[address]);
                 else
                     return 0xff;
             } else
                 return 0xff;
         case 0x70:
-            if (gbCgbMode)
+            if (GB_EMULATOR->HasCgbHw())
                 return (0xf8 | register_SVBK);
             else
                 return 0xff;
@@ -2411,18 +2228,26 @@ uint8_t gbReadMemory(uint16_t address)
         }
     }
     // OAM not accessible during mode 2 & 3.
-    if (((address >= 0xfe00) && (address < 0xfea0)) && ((((gbLcdMode | gbLcdModeDelayed) & 2) && (!(gbSpeed && (gbHardware & 0x2) && !(gbLcdModeDelayed & 2) && (gbLcdMode == 2)))) || (gbSpeed && (gbHardware & 0x2) && (gbLcdModeDelayed == 0) && (gbLcdTicksDelayed == (GBLCD_MODE_0_CLOCK_TICKS - gbSpritesTicks[299])))))
+    if (((address >= 0xfe00) && (address < 0xfea0)) && ((((gbLcdMode | gbLcdModeDelayed) & 2) && (!(gbSpeed && (GB_EMULATOR->IsCgb()) && !(gbLcdModeDelayed & 2) && (gbLcdMode == 2)))) || (gbSpeed && (GB_EMULATOR->IsCgb()) && (gbLcdModeDelayed == 0) && (gbLcdTicksDelayed == (GBLCD_MODE_0_CLOCK_TICKS - gbSpritesTicks[299])))))
         return 0xff;
 
     if ((address >= 0xfea0) && (address < 0xff00)) {
-        if (gbHardware & 1)
-            return ((((address + ((address >> 4) - 0xfea)) >> 2) & 1) ? 0x00 : 0xff);
-        else if (gbHardware & 2)
-            return gbMemoryMap[address >> 12][address & 0x0fff];
-        else if (gbHardware & 4)
-            return ((((address + ((address >> 4) - 0xfea)) >> 2) & 1) ? 0xff : 0x00);
-        else if (gbHardware & 8)
-            return ((address & 0xf0) | ((address & 0xf0) >> 4));
+        switch (GB_EMULATOR->running_emulator()) {
+            case core::GbEmulatorType::Automatic:
+                // This should never happen.
+                assert(false);
+                break;
+            case core::GbEmulatorType::Dmg:
+                return ((((address + ((address >> 4) - 0xfea)) >> 2) & 1) ? 0x00 : 0xff);
+            case core::GbEmulatorType::Sgb:
+            case core::GbEmulatorType::Sgb2:
+                return ((((address + ((address >> 4) - 0xfea)) >> 2) & 1) ? 0xff : 0x00);
+            case core::GbEmulatorType::Cgb:
+                return gbMemoryMap[address >> 12][address & 0x0fff];
+            case core::GbEmulatorType::Agb:
+            case core::GbEmulatorType::AgbSp:
+                return ((address & 0xf0) | ((address & 0xf0) >> 4));
+        }
     }
 
     return gbMemoryMap[address >> 12][address & 0x0fff];
@@ -2431,7 +2256,7 @@ uint8_t gbReadMemory(uint16_t address)
 void gbVblank_interrupt()
 {
     gbCheatWrite(false); // Emulates GS codes.
-    gbMemory[0xff0f] = register_IF &= 0xfe;
+    GB_EMULATOR->memory()[0xff0f] = register_IF &= 0xfe;
     gbWriteMemory(--SP.W, PC.B.B1);
     gbWriteMemory(--SP.W, PC.B.B0);
     PC.W = 0x40;
@@ -2440,7 +2265,7 @@ void gbVblank_interrupt()
 void gbLcd_interrupt()
 {
     gbCheatWrite(false); // Emulates GS codes.
-    gbMemory[0xff0f] = register_IF &= 0xfd;
+    GB_EMULATOR->memory()[0xff0f] = register_IF &= 0xfd;
     gbWriteMemory(--SP.W, PC.B.B1);
     gbWriteMemory(--SP.W, PC.B.B0);
     PC.W = 0x48;
@@ -2448,7 +2273,7 @@ void gbLcd_interrupt()
 
 void gbTimer_interrupt()
 {
-    gbMemory[0xff0f] = register_IF &= 0xfb;
+    GB_EMULATOR->memory()[0xff0f] = register_IF &= 0xfb;
     gbWriteMemory(--SP.W, PC.B.B1);
     gbWriteMemory(--SP.W, PC.B.B0);
     PC.W = 0x50;
@@ -2456,7 +2281,7 @@ void gbTimer_interrupt()
 
 void gbSerial_interrupt()
 {
-    gbMemory[0xff0f] = register_IF &= 0xf7;
+    GB_EMULATOR->memory()[0xff0f] = register_IF &= 0xf7;
     gbWriteMemory(--SP.W, PC.B.B1);
     gbWriteMemory(--SP.W, PC.B.B0);
     PC.W = 0x58;
@@ -2464,7 +2289,7 @@ void gbSerial_interrupt()
 
 void gbJoypad_interrupt()
 {
-    gbMemory[0xff0f] = register_IF &= 0xef;
+    GB_EMULATOR->memory()[0xff0f] = register_IF &= 0xef;
     gbWriteMemory(--SP.W, PC.B.B1);
     gbWriteMemory(--SP.W, PC.B.B0);
     PC.W = 0x60;
@@ -2519,7 +2344,7 @@ void gbSpeedSwitch()
         //SOUND_CLOCK_TICKS = soundQuality * 24;
         //soundTicks /= 2;
         gbLine99Ticks = 1;
-        if (gbHardware & 8)
+        if (GB_EMULATOR->HasAgbHw())
             gbLine99Ticks++;
     }
     gbDmaTicks += (134) * GBLY_INCREMENT_CLOCK_TICKS + (37 << (gbSpeed ? 1 : 0));
@@ -2550,12 +2375,13 @@ bool CPUIsGBBios(const char* file)
 void gbCPUInit(const char* biosFileName, bool useBiosFile)
 {
     // GB/GBC/SGB only at the moment
-    if (!(gbHardware & 7))
+    if (GB_EMULATOR->HasAgbHw()) {
         return;
+    }
 
     coreOptions.useBios = false;
     if (useBiosFile) {
-        int expectedSize = (gbHardware & 2) ? kCGBBiosSize : kGBBiosSize;
+        int expectedSize = (GB_EMULATOR->IsCgb()) ? kCGBBiosSize : kGBBiosSize;
         int size = expectedSize;
         if (utilLoad(biosFileName,
                 CPUIsGBBios,
@@ -2569,49 +2395,57 @@ void gbCPUInit(const char* biosFileName, bool useBiosFile)
     }
 }
 
-void gbGetHardwareType()
-{
-    if (g_gbCartData.header_type() == gbCartData::RomHeaderType::kInvalid) {
-        gbHardware = 0;
-        return;
-    }
+// void gbGetHardwareType()
+// {
+//     // gbEmulatorType:
+//     // 0 == Auto
+//     // 1 == CGB
+//     // 2 == SGB
+//     // 3 == DMG
+//     // 4 == AGB
+//     // 5 == SGB2
 
-    gbCgbMode = false;
-    gbSgbMode = false;
-    if ((gbEmulatorType == 0 && g_gbCartData.SupportsCGB()) ||
-        gbEmulatorType == 1 || gbEmulatorType == 4) {
-        gbCgbMode = true;
-    }
+//     if (GB_CART_DATA->header_type() == gbCartData::RomHeaderType::kInvalid) {
+//         gbHardware = 0;
+//         return;
+//     }
 
-    if ((!gbCgbMode) && (g_gbCartData.sgb_support())) {
-        if (gbEmulatorType == 0 || gbEmulatorType == 2 || gbEmulatorType == 5)
-            gbSgbMode = true;
-    }
+//     GB_EMULATOR->HasCgbHw() = false;
+//     GB_EMULATOR->HasSgbHw() = false;
+//     if ((gbEmulatorType == 0 && GB_CART_DATA->SupportsCGB()) ||
+//         gbEmulatorType == 1 || gbEmulatorType == 4) {
+//         GB_EMULATOR->HasCgbHw() = true;
+//     }
 
-    gbHardware = 1; // GB
-    if ((gbCgbMode && (gbEmulatorType == 0)) || (gbEmulatorType == 1))
-        gbHardware = 2; // GBC
-    else if ((gbSgbMode && (gbEmulatorType == 0)) || (gbEmulatorType == 2) ||
-             (gbEmulatorType == 5))
-        gbHardware = 4; // SGB(2)
-    else if (gbEmulatorType == 4)
-        gbHardware = 8; // GBA
+//     if ((!GB_EMULATOR->HasCgbHw()) && (GB_CART_DATA->sgb_support())) {
+//         if (gbEmulatorType == 0 || gbEmulatorType == 2 || gbEmulatorType == 5)
+//             GB_EMULATOR->HasSgbHw() = true;
+//     }
 
-    gbGBCColorType = 0;
-    if (gbHardware & 8) // If GBA is selected, choose the GBA default settings.
-        gbGBCColorType = 2; // (0 = GBC, 1 = GBA, 2 = GBASP)
-}
+//     gbHardware = 1; // GB
+//     if ((GB_EMULATOR->HasCgbHw() && (gbEmulatorType == 0)) || (gbEmulatorType == 1))
+//         gbHardware = 2; // GBC
+//     else if ((GB_EMULATOR->HasSgbHw() && (gbEmulatorType == 0)) || (gbEmulatorType == 2) ||
+//              (gbEmulatorType == 5))
+//         gbHardware = 4; // SGB(2)
+//     else if (gbEmulatorType == 4)
+//         gbHardware = 8; // GBA
+
+//     gbGBCColorType = 0;
+//     if (gbHardware & 8) // If GBA is selected, choose the GBA default settings.
+//         gbGBCColorType = 2; // (0 = GBC, 1 = GBA, 2 = GBASP)
+// }
 
 static void gbSelectColorizationPalette()
 {
     int infoIdx = 0;
 
     // Check if licensee is Nintendo. If not, use default palette.
-    if (gbRom[0x014B] == 0x01 || (gbRom[0x014B] == 0x33 && gbRom[0x0144] == 0x30 && gbRom[0x0145] == 0x31)) {
+    if (GB_EMULATOR->rom()[0x014B] == 0x01 || (GB_EMULATOR->rom()[0x014B] == 0x33 && GB_EMULATOR->rom()[0x0144] == 0x30 && GB_EMULATOR->rom()[0x0145] == 0x31)) {
         // Calculate the checksum over 16 title bytes.
         uint8_t checksum = 0;
         for (int i = 0; i < 16; i++) {
-            checksum += gbRom[0x0134 + i];
+            checksum += GB_EMULATOR->rom()[0x0134 + i];
         }
 
         // Check if the checksum is in the list.
@@ -2628,7 +2462,7 @@ static void gbSelectColorizationPalette()
             if (idx > 0x40) {
                 // No idea how that works. But it works.
                 for (size_t i = idx - 0x41, j = 0; i < sizeof(gbColorizationDisambigChars); i += 14, j += 14) {
-                    if (gbRom[0x0137] == gbColorizationDisambigChars[i]) {
+                    if (GB_EMULATOR->rom()[0x0137] == gbColorizationDisambigChars[i]) {
                         infoIdx = idx + j;
                         break;
                     }
@@ -2672,7 +2506,7 @@ static void gbSelectColorizationPalette()
 }
 
 void gbResetPalette() {
-    if (!gbCgbMode && !gbSgbMode) {
+    if (!GB_EMULATOR->HasCgbHw() && !GB_EMULATOR->HasSgbHw()) {
         // In SGB Mode, palette initialization is done in gbSgbReset().
         memcpy(gbPalette, &systemGbPalette[gbPaletteOption * 8],
             8 * sizeof(systemGbPalette[0]));
@@ -2688,34 +2522,13 @@ void gbReset()
     }
 #endif
 
-    gbGetHardwareType();
+    GB_EMULATOR->Reset();
 
     oldRegister_WY = 146;
     gbInterruptLaunched = 0;
 
-    if (gbCgbMode) {
-        if (gbVram == nullptr) {
-            gbVram = (uint8_t*)calloc(1, kGBVRamSize);
-            if (gbVram == nullptr) {
-                return;
-            }
-        }
-        if (gbWram == nullptr) {
-            gbWram = (uint8_t*)malloc(kGBWRamSize);
-            if (gbWram == nullptr) {
-                return;
-            }
-        }
+    if (GB_EMULATOR->HasCgbHw()) {
         memset(gbPalette, 0, sizeof(gbPalette));
-    } else {
-        if (gbVram != nullptr) {
-            free(gbVram);
-            gbVram = nullptr;
-        }
-        if (gbWram != nullptr) {
-            free(gbWram);
-            gbWram = nullptr;
-        }
     }
 
     gbLYChangeHappened = false;
@@ -2732,43 +2545,40 @@ void gbReset()
     // In all cases, most of the 2nd bank is filled with 00s.
     // The starting data are important for some 'buggy' games, like Buster Brothers or
     // Karamuchou ha Oosawagi!.
-    if (gbMemory != nullptr) {
-        memset(gbMemory, 0xff, 65536);
-        for (int temp = 0xC000; temp < 0xE000; temp++)
-            if ((temp & 0x8) ^ ((temp & 0x800) >> 8)) {
-                if ((gbHardware & 0x02) && (gbGBCColorType == 0))
-                    gbMemory[temp] = 0x0;
-                else
-                    gbMemory[temp] = 0x0f;
+    GB_EMULATOR->memory().fill(0xff);
+    for (int temp = 0xC000; temp < 0xE000; temp++)
+        if ((temp & 0x8) ^ ((temp & 0x800) >> 8)) {
+            if (GB_EMULATOR->IsCgb()) {
+                GB_EMULATOR->memory()[temp] = 0x00;
+            } else {
+                GB_EMULATOR->memory()[temp] = 0x0f;
             }
-
-            else
-                gbMemory[temp] = 0xff;
-    }
+        } else {
+            GB_EMULATOR->memory()[temp] = 0xff;
+        }
 
     if (gbSpeed) {
         gbSpeedSwitch();
-        gbMemory[0xff4d] = 0;
+        GB_EMULATOR->memory()[0xff4d] = 0;
     }
 
     // GB bios set this memory area to 0
     // Fixes Pitman (J) title screen
-    if (gbHardware & 0x1) {
-        memset(&gbMemory[0x8000], 0x0, 0x2000);
+    if (GB_EMULATOR->IsDmg()) {
+        memset(&GB_EMULATOR->memory()[0x8000], 0x0, 0x2000);
     }
 
     // clean LineBuffer
-    if (gbLineBuffer != nullptr) {
-        memset(gbLineBuffer, 0, kGBLineBufferSize);
-    }
+    GB_EMULATOR->line_buffer().fill(0);
+
     // clean Pix
     if (pix != nullptr) {
         memset(pix, 0, kGBPixSize);
     }
+
     // clean Vram
-    if (gbVram != nullptr) {
-        memset(gbVram, 0, kGBVRamSize);
-    }
+    GB_EMULATOR->vram().fill(0);
+
     // clean Wram 2
     // This kinda emulates the startup state of Wram on GBC (not very accurate,
     // but way closer to the reality than filling it with 00es or FFes).
@@ -2776,16 +2586,14 @@ void gbReset()
     // In all cases, most of the 2nd bank is filled with 00s.
     // The starting data are important for some 'buggy' games, like Buster Brothers or
     // Karamuchou ha Oosawagi!
-    if (gbWram != nullptr) {
-        for (int i = 0; i < 8; i++)
-            if (i != 2)
-                memcpy((uint16_t*)(gbWram + i * 0x1000), (uint16_t*)(gbMemory + 0xC000), 0x1000);
-    }
+    for (int i = 0; i < 8; i++)
+        if (i != 2)
+            memcpy((uint16_t*)(&GB_EMULATOR->wram()[i * 0x1000]), (uint16_t*)(&GB_EMULATOR->memory()[0xC000]), 0x1000);
 
     memset(gbSCYLine, 0, sizeof(gbSCYLine));
     memset(gbSCXLine, 0, sizeof(gbSCXLine));
     memset(gbBgpLine, 0xfc, sizeof(gbBgpLine));
-    if (gbHardware & 5) {
+    if (!GB_EMULATOR->HasCgbHw()) {
         memset(gbObp0Line, 0xff, sizeof(gbObp0Line));
         memset(gbObp1Line, 0xff, sizeof(gbObp1Line));
     } else {
@@ -2806,22 +2614,22 @@ void gbReset()
     register_TIMA = 0;
     register_TMA = 0;
     register_TAC = 0;
-    gbMemory[0xff0f] = register_IF = 1;
-    gbMemory[0xff40] = register_LCDC = 0x91;
-    gbMemory[0xff47] = 0xfc;
+    GB_EMULATOR->memory()[0xff0f] = register_IF = 1;
+    GB_EMULATOR->memory()[0xff40] = register_LCDC = 0x91;
+    GB_EMULATOR->memory()[0xff47] = 0xfc;
 
-    if (gbCgbMode)
-        gbMemory[0xff4d] = 0x7e;
+    if (GB_EMULATOR->HasCgbHw())
+        GB_EMULATOR->memory()[0xff4d] = 0x7e;
     else
-        gbMemory[0xff4d] = 0xff;
+        GB_EMULATOR->memory()[0xff4d] = 0xff;
 
-    if (!gbCgbMode)
-        gbMemory[0xff70] = gbMemory[0xff74] = 0xff;
+    if (!GB_EMULATOR->HasCgbHw())
+        GB_EMULATOR->memory()[0xff70] = GB_EMULATOR->memory()[0xff74] = 0xff;
 
-    if (gbCgbMode)
-        gbMemory[0xff56] = 0x3e;
+    if (GB_EMULATOR->HasCgbHw())
+        GB_EMULATOR->memory()[0xff56] = 0x3e;
     else
-        gbMemory[0xff56] = 0xff;
+        GB_EMULATOR->memory()[0xff56] = 0xff;
 
     register_SCY = 0;
     register_SCX = 0;
@@ -2838,43 +2646,42 @@ void gbReset()
     register_SVBK = 0;
     register_IE = 0;
 
-    if (gbCgbMode)
-        gbMemory[0xff02] = 0x7c;
+    if (GB_EMULATOR->HasCgbHw())
+        GB_EMULATOR->memory()[0xff02] = 0x7c;
     else
-        gbMemory[0xff02] = 0x7e;
+        GB_EMULATOR->memory()[0xff02] = 0x7e;
 
-    gbMemory[0xff03] = 0xff;
+    GB_EMULATOR->memory()[0xff03] = 0xff;
     int i;
     for (i = 0x8; i < 0xf; i++)
-        gbMemory[0xff00 + i] = 0xff;
+        GB_EMULATOR->memory()[0xff00 + i] = 0xff;
 
-    gbMemory[0xff13] = 0xff;
-    gbMemory[0xff15] = 0xff;
-    gbMemory[0xff18] = 0xff;
-    gbMemory[0xff1d] = 0xff;
-    gbMemory[0xff1f] = 0xff;
+    GB_EMULATOR->memory()[0xff13] = 0xff;
+    GB_EMULATOR->memory()[0xff15] = 0xff;
+    GB_EMULATOR->memory()[0xff18] = 0xff;
+    GB_EMULATOR->memory()[0xff1d] = 0xff;
+    GB_EMULATOR->memory()[0xff1f] = 0xff;
 
     for (i = 0x27; i < 0x30; i++)
-        gbMemory[0xff00 + i] = 0xff;
+        GB_EMULATOR->memory()[0xff00 + i] = 0xff;
 
-    gbMemory[0xff4c] = 0xff;
-    gbMemory[0xff4e] = 0xff;
-    gbMemory[0xff50] = 0xff;
+    GB_EMULATOR->memory()[0xff4c] = 0xff;
+    GB_EMULATOR->memory()[0xff4e] = 0xff;
+    GB_EMULATOR->memory()[0xff50] = 0xff;
 
     for (i = 0x57; i < 0x68; i++)
-        gbMemory[0xff00 + i] = 0xff;
+        GB_EMULATOR->memory()[0xff00 + i] = 0xff;
 
     for (i = 0x5d; i < 0x70; i++)
-        gbMemory[0xff00 + i] = 0xff;
+        GB_EMULATOR->memory()[0xff00 + i] = 0xff;
 
-    gbMemory[0xff71] = 0xff;
+    GB_EMULATOR->memory()[0xff71] = 0xff;
 
     for (i = 0x78; i < 0x80; i++)
-        gbMemory[0xff00 + i] = 0xff;
+        GB_EMULATOR->memory()[0xff00 + i] = 0xff;
 
-    if (gbHardware & 0xa) {
-
-        if (gbHardware & 2) {
+    if (GB_EMULATOR->HasCgbHw()) {
+        if (GB_EMULATOR->IsCgb()) {
             AF.W = 0x1180;
             BC.W = 0x0000;
         } else {
@@ -2882,44 +2689,44 @@ void gbReset()
             BC.W = 0x0100; // GBA/SP have B = 0x01 (which means GBC & GBA/SP bootrom are different !)
         }
 
-        gbMemory[0xff26] = 0xf1;
-        if (gbCgbMode) {
+        GB_EMULATOR->memory()[0xff26] = 0xf1;
+        if (GB_EMULATOR->HasCgbHw()) {
 
-            gbMemory[0xff31] = 0xff;
-            gbMemory[0xff33] = 0xff;
-            gbMemory[0xff35] = 0xff;
-            gbMemory[0xff37] = 0xff;
-            gbMemory[0xff39] = 0xff;
-            gbMemory[0xff3b] = 0xff;
-            gbMemory[0xff3d] = 0xff;
+            GB_EMULATOR->memory()[0xff31] = 0xff;
+            GB_EMULATOR->memory()[0xff33] = 0xff;
+            GB_EMULATOR->memory()[0xff35] = 0xff;
+            GB_EMULATOR->memory()[0xff37] = 0xff;
+            GB_EMULATOR->memory()[0xff39] = 0xff;
+            GB_EMULATOR->memory()[0xff3b] = 0xff;
+            GB_EMULATOR->memory()[0xff3d] = 0xff;
 
-            gbMemory[0xff44] = register_LY = 0x90;
-            gbDivTicks = 0x19 + ((gbHardware & 2) >> 1);
-            gbInternalTimer = 0x58 + ((gbHardware & 2) >> 1);
-            gbLcdTicks = GBLCD_MODE_1_CLOCK_TICKS - (register_LY - 0x8F) * GBLY_INCREMENT_CLOCK_TICKS + 72 + ((gbHardware & 2) >> 1);
-            gbLcdLYIncrementTicks = 72 + ((gbHardware & 2) >> 1);
-            gbMemory[0xff04] = register_DIV = 0x1E;
+            GB_EMULATOR->memory()[0xff44] = register_LY = 0x90;
+            gbDivTicks = 0x19 + ((GB_EMULATOR->IsCgb()) >> 1);
+            gbInternalTimer = 0x58 + ((GB_EMULATOR->IsCgb()) >> 1);
+            gbLcdTicks = GBLCD_MODE_1_CLOCK_TICKS - (register_LY - 0x8F) * GBLY_INCREMENT_CLOCK_TICKS + 72 + ((GB_EMULATOR->IsCgb()) >> 1);
+            gbLcdLYIncrementTicks = 72 + ((GB_EMULATOR->IsCgb()) >> 1);
+            GB_EMULATOR->memory()[0xff04] = register_DIV = 0x1E;
         } else {
-            gbMemory[0xff44] = register_LY = 0x94;
-            gbDivTicks = 0x22 + ((gbHardware & 2) >> 1);
-            gbInternalTimer = 0x61 + ((gbHardware & 2) >> 1);
-            gbLcdTicks = GBLCD_MODE_1_CLOCK_TICKS - (register_LY - 0x8F) * GBLY_INCREMENT_CLOCK_TICKS + 25 + ((gbHardware & 2) >> 1);
-            gbLcdLYIncrementTicks = 25 + ((gbHardware & 2) >> 1);
-            gbMemory[0xff04] = register_DIV = 0x26;
+            GB_EMULATOR->memory()[0xff44] = register_LY = 0x94;
+            gbDivTicks = 0x22 + ((GB_EMULATOR->IsCgb()) >> 1);
+            gbInternalTimer = 0x61 + ((GB_EMULATOR->IsCgb()) >> 1);
+            gbLcdTicks = GBLCD_MODE_1_CLOCK_TICKS - (register_LY - 0x8F) * GBLY_INCREMENT_CLOCK_TICKS + 25 + ((GB_EMULATOR->IsCgb()) >> 1);
+            gbLcdLYIncrementTicks = 25 + ((GB_EMULATOR->IsCgb()) >> 1);
+            GB_EMULATOR->memory()[0xff04] = register_DIV = 0x26;
         }
 
         DE.W = 0xff56;
         HL.W = 0x000d;
 
         register_HDMA5 = 0xff;
-        gbMemory[0xff68] = 0xc0;
-        gbMemory[0xff6a] = 0xc0;
+        GB_EMULATOR->memory()[0xff68] = 0xc0;
+        GB_EMULATOR->memory()[0xff6a] = 0xc0;
 
-        gbMemory[0xff41] = register_STAT = 0x81;
+        GB_EMULATOR->memory()[0xff41] = register_STAT = 0x81;
         gbLcdMode = 1;
     } else {
-        if (gbHardware & 4) {
-            if (gbEmulatorType == 5)
+        if (GB_EMULATOR->HasSgbHw()) {
+            if (GB_EMULATOR->IsSgb2())
                 AF.W = 0xffb0;
             else
                 AF.W = 0x01b0;
@@ -2929,49 +2736,50 @@ void gbReset()
         }
         gbDivTicks = 14;
         gbInternalTimer = gbDivTicks--;
-        gbMemory[0xff04] = register_DIV = 0xAB;
-        gbMemory[0xff41] = register_STAT = 0x85;
-        gbMemory[0xff44] = register_LY = 0x00;
+        GB_EMULATOR->memory()[0xff04] = register_DIV = 0xAB;
+        GB_EMULATOR->memory()[0xff41] = register_STAT = 0x85;
+        GB_EMULATOR->memory()[0xff44] = register_LY = 0x00;
         gbLcdTicks = 15;
         gbLcdLYIncrementTicks = 114 + gbLcdTicks;
         gbLcdMode = 1;
     }
 
     // used for the handling of the gb Boot Rom
-    if ((gbHardware & 7) && (bios != NULL) && coreOptions.useBios && !coreOptions.skipBios) {
-        if (gbHardware & 5) {
-            memcpy((uint8_t*)(gbMemory), (uint8_t*)(gbRom), 0x1000);
-            memcpy((uint8_t*)(gbMemory), (uint8_t*)(bios), kGBBiosSize);
+    if ((!GB_EMULATOR->HasAgbHw()) && (bios != NULL) && coreOptions.useBios && !coreOptions.skipBios) {
+        if (!GB_EMULATOR->HasCgbHw()) {
+            memcpy(GB_EMULATOR->memory().data(), GB_EMULATOR->rom().data(), 0x1000);
+            memcpy(GB_EMULATOR->memory().data(), bios, kGBBiosSize);
         } else {
-            memcpy((uint8_t*)(gbMemory), (uint8_t*)(bios), kCGBBiosSize);
-            memcpy((uint8_t*)(gbMemory + 0x100), (uint8_t*)(gbRom + 0x100), 0x100);
+            memcpy(GB_EMULATOR->memory().data(), bios, kCGBBiosSize);
+            memcpy(GB_EMULATOR->memory().data() + 0x100, &GB_EMULATOR->rom()[0x100], 0x100);
         }
         gbWhiteScreen = 0;
 
         gbInternalTimer = 0x3e;
         gbDivTicks = 0x3f;
-        gbMemory[0xff04] = register_DIV = 0x00;
+        GB_EMULATOR->memory()[0xff04] = register_DIV = 0x00;
         PC.W = 0x0000;
         register_LCDC = 0x11;
         gbScreenOn = false;
         gbLcdTicks = 0;
         gbLcdMode = 0;
         gbLcdModeDelayed = 0;
-        gbMemory[0xff41] = register_STAT &= 0xfc;
+        GB_EMULATOR->memory()[0xff41] = register_STAT &= 0xfc;
         gbInt48Signal = 0;
         gbLcdLYIncrementTicks = GBLY_INCREMENT_CLOCK_TICKS;
-        gbMemory[0xff6c] = 0xfe;
+        GB_EMULATOR->memory()[0xff6c] = 0xfe;
 
         inBios = true;
-    } else if (gbHardware & 0xa) {
+    } else if (GB_EMULATOR->HasCgbHw()) {
         // Set compatibility mode if it is a DMG ROM.
-        const uint8_t gbcFlag = g_gbCartData.SupportsCGB() ? 0x80 : 0x00;
-        gbMemory[0xff6c] = 0xfe | gbcFlag;
+        const uint8_t gbcFlag = GB_CART_DATA->SupportsCGB() ? 0x80 : 0x00;
+        GB_EMULATOR->memory()[0xff6c] = 0xfe | gbcFlag;
     }
 
     gbLine99Ticks = 1;
-    if (gbHardware & 8)
+    if (GB_EMULATOR->HasAgbHw()) {
         gbLine99Ticks++;
+    }
 
     gbLcdModeDelayed = gbLcdMode;
     gbLcdTicksDelayed = gbLcdTicks + 1;
@@ -2983,28 +2791,25 @@ void gbReset()
 
     gbResetPalette();
 
-    if (gbCgbMode) {
-        // This is just to show that the starting values of the OBJ palettes are different
-        // between the 3 consoles, and that they 'kinda' stay the same at each reset
-        // (they can slightly change, somehow (randomly?)).
-        // You can check the effects of gbGBCColorType on the "Vila Caldan Color" gbc demo.
-        // Note that you could also check the Div register to check on which system the game
-        // is running (GB,GBC and GBA(SP) have different startup values).
-        // Unfortunatly, I don't have any SGB system, so I can't get their starting values.
+    // This is just to show that the starting values of the OBJ palettes are different
+    // between the 3 consoles, and that they 'kinda' stay the same at each reset
+    // (they can slightly change, somehow (randomly?)).
+    // You can check the effects of gbGBCColorType on the "Vila Caldan Color" gbc demo.
+    // Note that you could also check the Div register to check on which system the game
+    // is running (GB,GBC and GBA(SP) have different startup values).
+    // Unfortunatly, I don't have any SGB system, so I can't get their starting values.
 
-        if (gbGBCColorType == 0) {
-            // GBC Hardware
+    if (GB_EMULATOR->HasCgbHw()) {
+        if (GB_EMULATOR->IsCgb()) {
             std::copy(kGbGbcPalette.begin(), kGbGbcPalette.end(), gbPalette);
-        } else if (gbGBCColorType == 1) {
-            // GBA Hardware
+        } else if (GB_EMULATOR->IsAgb()) {
             std::copy(kGbGbaPalette.begin(), kGbGbaPalette.end(), gbPalette);
-        } else if (gbGBCColorType == 2) {
-            // GBASP Hardware
+        } else if (GB_EMULATOR->IsAgbSp()) {
             std::copy(kGbGbaSpPalette.begin(), kGbGbaSpPalette.end(), gbPalette);
         }
 
         // The CGB BIOS palette selection has to be done by VBA if BIOS is skipped.
-        if (!g_gbCartData.RequiresCGB() && !inBios) {
+        if (!GB_CART_DATA->RequiresCGB() && !inBios) {
             gbSelectColorizationPalette();
         }
     }
@@ -3026,7 +2831,7 @@ void gbReset()
     gbSpeed = 0;
     gbJoymask[0] = gbJoymask[1] = gbJoymask[2] = gbJoymask[3] = 0;
 
-    if (gbCgbMode) {
+    if (GB_EMULATOR->HasCgbHw()) {
         gbSpeed = 0;
         gbHdmaOn = 0;
         gbHdmaSource = 0x99d0;
@@ -3036,11 +2841,12 @@ void gbReset()
     }
 
     // used to clean the borders
-    if (gbSgbMode) {
+    if (GB_EMULATOR->HasSgbHw()) {
         gbSgbResetFlag = true;
         gbSgbReset();
-        if (gbBorderOn)
+        if (GB_EMULATOR->sgb_border_on()) {
             gbSgbRenderBorder();
+        }
         gbSgbResetFlag = false;
     }
 
@@ -3058,7 +2864,7 @@ void gbReset()
 
     memset(&gbDataMBC5, 0, sizeof(gbDataMBC5));
     gbDataMBC5.mapperROMBank = 1;
-    gbDataMBC5.isRumbleCartridge = g_gbCartData.has_rumble();
+    gbDataMBC5.isRumbleCartridge = GB_CART_DATA->has_rumble();
 
     memset(&gbDataHuC1, 0, sizeof(gbDataHuC1));
     gbDataHuC1.mapperROMBank = 1;
@@ -3078,49 +2884,49 @@ void gbReset()
     gbDataMMM01.mapperROMBank = 1;
 
     if (inBios) {
-        gbMemoryMap[0x00] = &gbMemory[0x0000];
+        gbMemoryMap[0x00] = &GB_EMULATOR->memory()[0x0000];
     } else {
-        gbMemoryMap[0x00] = &gbRom[0x0000];
+        gbMemoryMap[0x00] = &GB_EMULATOR->rom()[0x0000];
     }
 
-    gbMemoryMap[0x01] = &gbRom[0x1000];
-    gbMemoryMap[0x02] = &gbRom[0x2000];
-    gbMemoryMap[0x03] = &gbRom[0x3000];
-    gbMemoryMap[0x04] = &gbRom[0x4000];
-    gbMemoryMap[0x05] = &gbRom[0x5000];
-    gbMemoryMap[0x06] = &gbRom[0x6000];
-    gbMemoryMap[0x07] = &gbRom[0x7000];
-    if (gbCgbMode) {
-        gbMemoryMap[0x08] = &gbVram[0x0000];
-        gbMemoryMap[0x09] = &gbVram[0x1000];
-        gbMemoryMap[0x0a] = &gbMemory[0xa000];
-        gbMemoryMap[0x0b] = &gbMemory[0xb000];
+    gbMemoryMap[0x01] = &GB_EMULATOR->rom()[0x1000];
+    gbMemoryMap[0x02] = &GB_EMULATOR->rom()[0x2000];
+    gbMemoryMap[0x03] = &GB_EMULATOR->rom()[0x3000];
+    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[0x4000];
+    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[0x5000];
+    gbMemoryMap[0x06] = &GB_EMULATOR->rom()[0x6000];
+    gbMemoryMap[0x07] = &GB_EMULATOR->rom()[0x7000];
+    if (GB_EMULATOR->HasCgbHw()) {
+        gbMemoryMap[0x08] = &GB_EMULATOR->vram()[0x0000];
+        gbMemoryMap[0x09] = &GB_EMULATOR->vram()[0x1000];
+        gbMemoryMap[0x0a] = &GB_EMULATOR->memory()[0xa000];
+        gbMemoryMap[0x0b] = &GB_EMULATOR->memory()[0xb000];
 
         // TODO: 2019/1/15
-        // Should we be using gbWram[] on $C000 as well
+        // Should we be using GB_EMULATOR->wram()[] on $C000 as well
         // for a continouos mem block?
 #ifndef __LIBRETRO__
-        gbMemoryMap[0x0c] = &gbMemory[0xc000];
+        gbMemoryMap[0x0c] = &GB_EMULATOR->memory()[0xc000];
 #else
-        gbMemoryMap[0x0c] = &gbWram[0x0000];
+        gbMemoryMap[0x0c] = &GB_EMULATOR->wram()[0x0000];
 #endif
-        gbMemoryMap[0x0d] = &gbWram[0x1000];
-        gbMemoryMap[0x0e] = &gbMemory[0xe000];
-        gbMemoryMap[0x0f] = &gbMemory[0xf000];
+        gbMemoryMap[0x0d] = &GB_EMULATOR->wram()[0x1000];
+        gbMemoryMap[0x0e] = &GB_EMULATOR->memory()[0xe000];
+        gbMemoryMap[0x0f] = &GB_EMULATOR->memory()[0xf000];
     } else {
-        gbMemoryMap[0x08] = &gbMemory[0x8000];
-        gbMemoryMap[0x09] = &gbMemory[0x9000];
-        gbMemoryMap[0x0a] = &gbMemory[0xa000];
-        gbMemoryMap[0x0b] = &gbMemory[0xb000];
-        gbMemoryMap[0x0c] = &gbMemory[0xc000];
-        gbMemoryMap[0x0d] = &gbMemory[0xd000];
-        gbMemoryMap[0x0e] = &gbMemory[0xe000];
-        gbMemoryMap[0x0f] = &gbMemory[0xf000];
+        gbMemoryMap[0x08] = &GB_EMULATOR->memory()[0x8000];
+        gbMemoryMap[0x09] = &GB_EMULATOR->memory()[0x9000];
+        gbMemoryMap[0x0a] = &GB_EMULATOR->memory()[0xa000];
+        gbMemoryMap[0x0b] = &GB_EMULATOR->memory()[0xb000];
+        gbMemoryMap[0x0c] = &GB_EMULATOR->memory()[0xc000];
+        gbMemoryMap[0x0d] = &GB_EMULATOR->memory()[0xd000];
+        gbMemoryMap[0x0e] = &GB_EMULATOR->memory()[0xe000];
+        gbMemoryMap[0x0f] = &GB_EMULATOR->memory()[0xf000];
     }
 
-    if (gbRam) {
-        gbMemoryMap[0x0a] = &gbRam[0x0000];
-        gbMemoryMap[0x0b] = &gbRam[0x1000];
+    if (GB_CART_DATA->HasRam()) {
+        gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[0x0000];
+        gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[0x1000];
     }
 
     gbSoundReset();
@@ -3150,7 +2956,7 @@ bool gbReadGSASnapshot(const char* fileName)
     char buffer2[16];
     FREAD_UNCHECKED(buffer, 1, 15, file);
     buffer[15] = 0;
-    memcpy(buffer2, &gbRom[0x134], 15);
+    memcpy(buffer2, &GB_EMULATOR->rom()[0x134], 15);
     buffer2[15] = 0;
     if (memcmp(buffer, buffer2, 15)) {
         systemMessage(MSG_CANNOT_IMPORT_SNAPSHOT_FOR,
@@ -3161,17 +2967,17 @@ bool gbReadGSASnapshot(const char* fileName)
         return false;
     }
     fseek(file, 0x13, SEEK_SET);
-    if (g_gbCartData.has_battery()) {
-        switch (g_gbCartData.mapper_type()) {
+    if (GB_CART_DATA->has_battery()) {
+        switch (GB_CART_DATA->mapper_type()) {
             case gbCartData::MapperType::kMbc1:
             case gbCartData::MapperType::kMbc3:
             case gbCartData::MapperType::kMbc5:
             case gbCartData::MapperType::kMbc7:
             case gbCartData::MapperType::kHuC1:
-                FREAD_UNCHECKED(gbRam, 1, g_gbCartData.ram_size(), file);
+                FREAD_UNCHECKED(GB_EMULATOR->ram().data(), 1, GB_CART_DATA->ram_size(), file);
                 break;
             case gbCartData::MapperType::kMbc2:
-                FREAD_UNCHECKED(&gbMemory[0xa000], 1, k256B, file);
+                FREAD_UNCHECKED(&GB_EMULATOR->memory()[0xa000], 1, k256B, file);
                 break;
             default:
                 systemMessage(MSG_UNSUPPORTED_SNAPSHOT_FILE,
@@ -3184,6 +2990,12 @@ bool gbReadGSASnapshot(const char* fileName)
     gbReset();
     return true;
 }
+
+
+namespace {
+
+int g_cgb_hw = 0;
+int g_sgb_hw = 0;
 
 variable_desc gbSaveGameStruct[] = {
     { &PC.W, sizeof(uint16_t) },
@@ -3220,7 +3032,7 @@ variable_desc gbSaveGameStruct[] = {
     { &gbTimerMode, sizeof(int) },
     { &gbSerialOn, sizeof(int) },
     { &gbWindowLine, sizeof(int) },
-    { &gbCgbMode, sizeof(int) },
+    { &g_cgb_hw, sizeof(int) },
     { &gbVramBank, sizeof(int) },
     { &gbWramBank, sizeof(int) },
     { &gbHdmaSource, sizeof(int) },
@@ -3228,7 +3040,7 @@ variable_desc gbSaveGameStruct[] = {
     { &gbHdmaBytes, sizeof(int) },
     { &gbHdmaOn, sizeof(int) },
     { &gbSpeed, sizeof(int) },
-    { &gbSgbMode, sizeof(int) },
+    { &g_sgb_hw, sizeof(int) },
     { &register_DIV, sizeof(uint8_t) },
     { &register_TIMA, sizeof(uint8_t) },
     { &register_TMA, sizeof(uint8_t) },
@@ -3266,22 +3078,26 @@ variable_desc gbSaveGameStruct[] = {
     { NULL, 0 }
 };
 
+}
+
 #ifndef __LIBRETRO__
 static bool gbWriteSaveState(gzFile gzFile)
 {
 
     utilWriteInt(gzFile, GBSAVE_GAME_VERSION);
 
-    utilGzWrite(gzFile, &gbRom[0x134], 15);
+    utilGzWrite(gzFile, &GB_EMULATOR->rom()[0x134], 15);
 
     utilWriteInt(gzFile, coreOptions.useBios);
     utilWriteInt(gzFile, inBios);
 
+    g_sgb_hw = GB_EMULATOR->HasSgbHw();
+    g_cgb_hw = GB_EMULATOR->HasCgbHw();
     utilWriteData(gzFile, gbSaveGameStruct);
 
     utilGzWrite(gzFile, &IFF, 2);
 
-    if (gbSgbMode) {
+    if (GB_EMULATOR->HasSgbHw()) {
         gbSgbSaveGame(gzFile);
     }
 
@@ -3292,23 +3108,23 @@ static bool gbWriteSaveState(gzFile gzFile)
     utilGzWrite(gzFile, &gbDataHuC1, sizeof(gbDataHuC1));
     utilGzWrite(gzFile, &gbDataHuC3, sizeof(gbDataHuC3));
     utilGzWrite(gzFile, &gbDataTAMA5, sizeof(gbDataTAMA5));
-    if (gbTAMA5ram != NULL)
-        utilGzWrite(gzFile, gbTAMA5ram, kTama5RamSize);
+    if (GB_CART_DATA->mapper_type() == gbCartData::MapperType::kTama5)
+        utilGzWrite(gzFile, GB_EMULATOR->tama5_ram().data(), kTama5RamSize);
     utilGzWrite(gzFile, &gbDataMMM01, sizeof(gbDataMMM01));
 
     utilGzWrite(gzFile, gbPalette, sizeof(gbPalette));
 
-    utilGzWrite(gzFile, &gbMemory[0x8000], 0x8000);
+    utilGzWrite(gzFile, &GB_EMULATOR->memory()[0x8000], 0x8000);
 
-    if (g_gbCartData.HasRam()) {
-        const size_t ramSize = g_gbCartData.ram_size();
+    if (GB_CART_DATA->HasRam()) {
+        const size_t ramSize = GB_CART_DATA->ram_size();
         utilWriteInt(gzFile, ramSize);
-        utilGzWrite(gzFile, gbRam, ramSize);
+        utilGzWrite(gzFile, GB_EMULATOR->ram().data(), ramSize);
     }
 
-    if (gbCgbMode) {
-        utilGzWrite(gzFile, gbVram, kGBVRamSize);
-        utilGzWrite(gzFile, gbWram, kGBWRamSize);
+    if (GB_EMULATOR->HasCgbHw()) {
+        utilGzWrite(gzFile, GB_EMULATOR->vram().data(), kGBVRamSize);
+        utilGzWrite(gzFile, GB_EMULATOR->wram().data(), kGBWRamSize);
     }
 
     gbSoundSaveGame(gzFile);
@@ -3321,7 +3137,7 @@ static bool gbWriteSaveState(gzFile gzFile)
     utilWriteInt(gzFile, gbSpritesTicks[299]);
     utilWriteInt(gzFile, gbTimerModeChange);
     utilWriteInt(gzFile, gbTimerOnChange);
-    utilWriteInt(gzFile, gbHardware);
+    utilWriteInt(gzFile, GB_EMULATOR->gbHardware());
     utilWriteInt(gzFile, gbBlackScreen);
     utilWriteInt(gzFile, oldRegister_WY);
     utilWriteInt(gzFile, gbWindowLine);
@@ -3366,6 +3182,8 @@ bool gbWriteSaveState(const char* name)
 
 static bool gbReadSaveState(gzFile gzFile)
 {
+    // Unfortunately, this needs a complete rewrite to work with my new fancy gbEmulator.
+    // We need to read all of the data, then change the emulator type while we reset.
     int version = utilReadInt(gzFile);
 
     if (version > GBSAVE_GAME_VERSION || version < 0) {
@@ -3378,10 +3196,10 @@ static bool gbReadSaveState(gzFile gzFile)
 
     utilGzRead(gzFile, romname, 15);
 
-    if (memcmp(&gbRom[0x134], romname, 15) != 0) {
+    if (memcmp(&GB_EMULATOR->rom()[0x134], romname, 15) != 0) {
         systemMessage(MSG_CANNOT_LOAD_SGM_FOR,
             N_("Cannot load save game for %s. Playing %s"),
-            romname, &gbRom[0x134]);
+            romname, &GB_EMULATOR->rom()[0x134]);
         return false;
     }
 
@@ -3410,36 +3228,15 @@ static bool gbReadSaveState(gzFile gzFile)
     utilReadData(gzFile, gbSaveGameStruct);
 
     // Correct crash when loading color gameboy save in regular gameboy type.
-    if (gbCgbMode) {
-        if (gbVram == nullptr) {
-            gbVram = (uint8_t*)calloc(1, kGBVRamSize);
-            if (gbVram == nullptr) {
-                return false;
-            }
-        }
-        if (gbWram == nullptr) {
-            gbWram = (uint8_t*)malloc(kGBWRamSize);
-            if (gbWram == nullptr) {
-                return false;
-            }
-        }
+    if (GB_EMULATOR->HasCgbHw()) {
         memset(gbPalette, 0, sizeof(gbPalette));
-    } else {
-        if (gbVram != nullptr) {
-            free(gbVram);
-            gbVram = nullptr;
-        }
-        if (gbWram != nullptr) {
-            free(gbWram);
-            gbWram = nullptr;
-        }
     }
 
     if (version >= GBSAVE_GAME_VERSION_7) {
         utilGzRead(gzFile, &IFF, 2);
     }
 
-    if (gbSgbMode) {
+    if (GB_EMULATOR->HasSgbHw()) {
         gbSgbReadGame(gzFile, version);
     } else {
         gbSgbMask = 0; // loading a game at the wrong time causes no display
@@ -3455,11 +3252,11 @@ static bool gbReadSaveState(gzFile gzFile)
     utilGzRead(gzFile, &gbDataHuC3, sizeof(gbDataHuC3));
     if (version >= 11) {
         utilGzRead(gzFile, &gbDataTAMA5, sizeof(gbDataTAMA5));
-        if (gbTAMA5ram != NULL) {
+        if (GB_CART_DATA->mapper_type() == gbCartData::MapperType::kTama5) {
             if (coreOptions.skipSaveGameBattery) {
                 utilGzSeek(gzFile, kTama5RamSize, SEEK_CUR);
             } else {
-                utilGzRead(gzFile, gbTAMA5ram, kTama5RamSize);
+                utilGzRead(gzFile, GB_EMULATOR->tama5_ram().data(), kTama5RamSize);
             }
         }
         utilGzRead(gzFile, &gbDataMMM01, sizeof(gbDataMMM01));
@@ -3482,15 +3279,15 @@ static bool gbReadSaveState(gzFile gzFile)
     // the user-defined palette and not the saved palette.
     gbResetPalette();
 
-    utilGzRead(gzFile, &gbMemory[0x8000], 0x8000);
+    utilGzRead(gzFile, &GB_EMULATOR->memory()[0x8000], 0x8000);
 
-    if (g_gbCartData.HasRam()) {
-        const size_t ram_size = g_gbCartData.ram_size();
+    if (GB_CART_DATA->HasRam()) {
+        const size_t ram_size = GB_CART_DATA->ram_size();
         if (version < 11)
             if (coreOptions.skipSaveGameBattery) {
                 utilGzSeek(gzFile, ram_size, SEEK_CUR); //skip
             } else {
-                utilGzRead(gzFile, gbRam, ram_size); //read
+                utilGzRead(gzFile, GB_EMULATOR->ram().data(), ram_size); //read
             }
         else {
             const size_t stateRamSize = utilReadInt(gzFile);
@@ -3499,7 +3296,7 @@ static bool gbReadSaveState(gzFile gzFile)
                 utilGzSeek(gzFile, std::min(ram_size, stateRamSize), SEEK_CUR);
             } else {
                 // Ovewrite the save game RAM.
-                utilGzRead(gzFile, gbRam, std::min(ram_size, stateRamSize));
+                utilGzRead(gzFile, GB_EMULATOR->ram().data(), std::min(ram_size, stateRamSize));
             }
             if (stateRamSize > ram_size) {
                 utilGzSeek(gzFile, stateRamSize - ram_size, SEEK_CUR);
@@ -3515,34 +3312,34 @@ static bool gbReadSaveState(gzFile gzFile)
     memset(gbSpritesTicks, 0x0, sizeof(gbSpritesTicks));
 
     if (inBios) {
-        gbMemoryMap[0x00] = &gbMemory[0x0000];
-        if (gbHardware & 5) {
-            memcpy((uint8_t*)(gbMemory), (uint8_t*)(gbRom), 0x1000);
-            memcpy((uint8_t*)(gbMemory), (uint8_t*)(bios), kGBBiosSize);
-        } else if (gbHardware & 2) {
-            memcpy((uint8_t*)(gbMemory), (uint8_t*)(bios), kCGBBiosSize);
-            memcpy((uint8_t*)(gbMemory + 0x100), (uint8_t*)(gbRom + 0x100), 0x100);
+        gbMemoryMap[0x00] = &GB_EMULATOR->memory()[0x0000];
+        if (!GB_EMULATOR->HasCgbHw()) {
+            memcpy(GB_EMULATOR->memory().data(), GB_EMULATOR->rom().data(), 0x1000);
+            memcpy(GB_EMULATOR->memory().data(), (uint8_t*)(bios), kGBBiosSize);
+        } else if (GB_EMULATOR->IsCgb()) {
+            memcpy(GB_EMULATOR->memory().data(), bios, kCGBBiosSize);
+            memcpy(GB_EMULATOR->memory().data() + 0x100, GB_EMULATOR->rom().data() + 0x100, 0x100);
         }
+    } else {
+        gbMemoryMap[0x00] = &GB_EMULATOR->rom()[0x0000];
+    }
+    gbMemoryMap[0x01] = &GB_EMULATOR->rom()[0x1000];
+    gbMemoryMap[0x02] = &GB_EMULATOR->rom()[0x2000];
+    gbMemoryMap[0x03] = &GB_EMULATOR->rom()[0x3000];
+    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[0x4000];
+    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[0x5000];
+    gbMemoryMap[0x06] = &GB_EMULATOR->rom()[0x6000];
+    gbMemoryMap[0x07] = &GB_EMULATOR->rom()[0x7000];
+    gbMemoryMap[0x08] = &GB_EMULATOR->memory()[0x8000];
+    gbMemoryMap[0x09] = &GB_EMULATOR->memory()[0x9000];
+    gbMemoryMap[0x0a] = &GB_EMULATOR->memory()[0xa000];
+    gbMemoryMap[0x0b] = &GB_EMULATOR->memory()[0xb000];
+    gbMemoryMap[0x0c] = &GB_EMULATOR->memory()[0xc000];
+    gbMemoryMap[0x0d] = &GB_EMULATOR->memory()[0xd000];
+    gbMemoryMap[0x0e] = &GB_EMULATOR->memory()[0xe000];
+    gbMemoryMap[0x0f] = &GB_EMULATOR->memory()[0xf000];
 
-    } else
-        gbMemoryMap[0x00] = &gbRom[0x0000];
-    gbMemoryMap[0x01] = &gbRom[0x1000];
-    gbMemoryMap[0x02] = &gbRom[0x2000];
-    gbMemoryMap[0x03] = &gbRom[0x3000];
-    gbMemoryMap[0x04] = &gbRom[0x4000];
-    gbMemoryMap[0x05] = &gbRom[0x5000];
-    gbMemoryMap[0x06] = &gbRom[0x6000];
-    gbMemoryMap[0x07] = &gbRom[0x7000];
-    gbMemoryMap[0x08] = &gbMemory[0x8000];
-    gbMemoryMap[0x09] = &gbMemory[0x9000];
-    gbMemoryMap[0x0a] = &gbMemory[0xa000];
-    gbMemoryMap[0x0b] = &gbMemory[0xb000];
-    gbMemoryMap[0x0c] = &gbMemory[0xc000];
-    gbMemoryMap[0x0d] = &gbMemory[0xd000];
-    gbMemoryMap[0x0e] = &gbMemory[0xe000];
-    gbMemoryMap[0x0f] = &gbMemory[0xf000];
-
-    switch (g_gbCartData.mapper_type()) {
+    switch (GB_CART_DATA->mapper_type()) {
         case gbCartData::MapperType::kNone:
         case gbCartData::MapperType::kMbc1:
             memoryUpdateMapMBC1();
@@ -3582,26 +3379,26 @@ static bool gbReadSaveState(gzFile gzFile)
             break;
     }
 
-    if (gbCgbMode) {
-        utilGzRead(gzFile, gbVram, kGBVRamSize);
-        utilGzRead(gzFile, gbWram, kGBWRamSize);
+    if (GB_EMULATOR->HasCgbHw()) {
+        utilGzRead(gzFile, GB_EMULATOR->vram().data(), kGBVRamSize);
+        utilGzRead(gzFile, GB_EMULATOR->wram().data(), kGBWRamSize);
 
         int value = register_SVBK;
         if (value == 0)
             value = 1;
 
-        gbMemoryMap[0x08] = &gbVram[register_VBK * 0x2000];
-        gbMemoryMap[0x09] = &gbVram[register_VBK * 0x2000 + 0x1000];
-        gbMemoryMap[0x0d] = &gbWram[value * 0x1000];
+        gbMemoryMap[0x08] = &GB_EMULATOR->vram()[register_VBK * 0x2000];
+        gbMemoryMap[0x09] = &GB_EMULATOR->vram()[register_VBK * 0x2000 + 0x1000];
+        gbMemoryMap[0x0d] = &GB_EMULATOR->wram()[value * 0x1000];
     }
 
     gbSoundReadGame(version, gzFile);
 
-    if (gbCgbMode && gbSgbMode) {
-        gbSgbMode = false;
+    if (GB_EMULATOR->HasCgbHw() && GB_EMULATOR->HasSgbHw()) {
+        GB_EMULATOR->HasSgbHw() = false;
     }
 
-    if (gbBorderOn && !gbSgbMask) {
+    if (GB_EMULATOR->sgb_border_on() && !gbSgbMask) {
         gbSgbRenderBorder();
     }
 
@@ -3617,26 +3414,26 @@ static bool gbReadSaveState(gzFile gzFile)
 
     if (version < 11) {
         gbWriteMemory(0xff00, 0);
-        gbMemory[0xff04] = register_DIV;
-        gbMemory[0xff05] = register_TIMA;
-        gbMemory[0xff06] = register_TMA;
-        gbMemory[0xff07] = register_TAC;
-        gbMemory[0xff40] = register_LCDC;
-        gbMemory[0xff42] = register_SCY;
-        gbMemory[0xff43] = register_SCX;
-        gbMemory[0xff44] = register_LY;
-        gbMemory[0xff45] = register_LYC;
-        gbMemory[0xff46] = register_DMA;
-        gbMemory[0xff4a] = register_WY;
-        gbMemory[0xff4b] = register_WX;
-        gbMemory[0xff4f] = register_VBK;
-        gbMemory[0xff51] = register_HDMA1;
-        gbMemory[0xff52] = register_HDMA2;
-        gbMemory[0xff53] = register_HDMA3;
-        gbMemory[0xff54] = register_HDMA4;
-        gbMemory[0xff55] = register_HDMA5;
-        gbMemory[0xff70] = register_SVBK;
-        gbMemory[0xffff] = register_IE;
+        GB_EMULATOR->memory()[0xff04] = register_DIV;
+        GB_EMULATOR->memory()[0xff05] = register_TIMA;
+        GB_EMULATOR->memory()[0xff06] = register_TMA;
+        GB_EMULATOR->memory()[0xff07] = register_TAC;
+        GB_EMULATOR->memory()[0xff40] = register_LCDC;
+        GB_EMULATOR->memory()[0xff42] = register_SCY;
+        GB_EMULATOR->memory()[0xff43] = register_SCX;
+        GB_EMULATOR->memory()[0xff44] = register_LY;
+        GB_EMULATOR->memory()[0xff45] = register_LYC;
+        GB_EMULATOR->memory()[0xff46] = register_DMA;
+        GB_EMULATOR->memory()[0xff4a] = register_WY;
+        GB_EMULATOR->memory()[0xff4b] = register_WX;
+        GB_EMULATOR->memory()[0xff4f] = register_VBK;
+        GB_EMULATOR->memory()[0xff51] = register_HDMA1;
+        GB_EMULATOR->memory()[0xff52] = register_HDMA2;
+        GB_EMULATOR->memory()[0xff53] = register_HDMA3;
+        GB_EMULATOR->memory()[0xff54] = register_HDMA4;
+        GB_EMULATOR->memory()[0xff55] = register_HDMA5;
+        GB_EMULATOR->memory()[0xff70] = register_SVBK;
+        GB_EMULATOR->memory()[0xffff] = register_IE;
         GBDIV_CLOCK_TICKS = 64;
 
         if (gbSpeed)
@@ -3728,69 +3525,30 @@ bool gbReadSaveState(const char* name)
 
 bool gbWritePNGFile(const char* fileName)
 {
-    if (gbBorderOn)
+    if (GB_EMULATOR->sgb_border_on()) {
         return utilWritePNGFile(fileName, kSGBWidth, kSGBHeight, pix);
+    }
     return utilWritePNGFile(fileName, kGBWidth, kGBHeight, pix);
 }
 
 bool gbWriteBMPFile(const char* fileName)
 {
-    if (gbBorderOn)
+    if (GB_EMULATOR->sgb_border_on()) {
         return utilWriteBMPFile(fileName, kSGBWidth, kSGBHeight, pix);
+    }
     return utilWriteBMPFile(fileName, kGBWidth, kGBHeight, pix);
 }
 #endif // !__LIBRETRO__
 
-void gbCleanUp()
-{
-    if (gbRam != nullptr) {
-        free(gbRam);
-        gbRam = nullptr;
-    }
-
-    if (gbRom != nullptr) {
-        free(gbRom);
-        gbRom = nullptr;
-    }
-
-    if (bios != nullptr) {
-        free(bios);
-        bios = nullptr;
-    }
-
-    if (gbMemory != nullptr) {
-        free(gbMemory);
-        gbMemory = nullptr;
-    }
-
-    if (gbLineBuffer != nullptr) {
-        free(gbLineBuffer);
-        gbLineBuffer = nullptr;
-    }
-
+void gbCleanUp() {
     if (pix != nullptr) {
         free(pix);
         pix = nullptr;
     }
 
     gbSgbShutdown();
+    GB_EMULATOR->Shutdown();
 
-    if (gbVram != nullptr) {
-        free(gbVram);
-        gbVram = nullptr;
-    }
-
-    if (gbWram != nullptr) {
-        free(gbWram);
-        gbWram = nullptr;
-    }
-
-    if (gbTAMA5ram != nullptr) {
-        free(gbTAMA5ram);
-        gbTAMA5ram = nullptr;
-    }
-
-    g_gbCartData = gbCartData();
     g_mapper = nullptr;
     g_mapperRAM = nullptr;
     g_mapperReadRAM = nullptr;
@@ -3803,16 +3561,15 @@ void gbCleanUp()
 }
 
 bool gbLoadRom(const char* filename) {
-    int romSize = 0;
-
-    if (gbRom != nullptr) {
+    if (GB_EMULATOR->status() == core::gbEmulator::Status::kRunning) {
         gbCleanUp();
     }
 
     systemSaveUpdateCounter = SYSTEM_SAVE_NOT_UPDATED;
 
-    gbRom = utilLoad(filename, utilIsGBImage, nullptr, romSize);
-    if (!gbRom)
+    int romSize = 0;
+    uint8_t* rom = utilLoad(filename, utilIsGBImage, nullptr, romSize);
+    if (!GB_EMULATOR->LoadRom(rom, romSize))
         return false;
 
     g_gbBatteryError = false;
@@ -3826,22 +3583,13 @@ bool gbLoadRom(const char* filename) {
         return false;
     }
 
-    gbMemory = (uint8_t*)malloc(65536);
-    if (gbMemory == nullptr) {
-        return false;
-    }
-
     pix = (uint8_t*)calloc(1, kGBPixSize);
     if (pix == nullptr) {
         return false;
     }
 
-    gbLineBuffer = (uint16_t*)malloc(kGBLineBufferSize);
-    if (gbLineBuffer == nullptr) {
-        return false;
-    }
-
-    return gbInitializeRom(romSize);
+    gbReset();
+    return true;
 }
 
 int gbGetNextEvent(int _clockTicks)
@@ -3907,8 +3655,9 @@ void gbDrawLine()
             *dest++ = systemColorMap16[gbLineMix[x++]];
             *dest++ = systemColorMap16[gbLineMix[x++]];
         }
-        if (gbBorderOn)
+        if (GB_EMULATOR->sgb_border_on()) {
             dest += gbBorderColumnSkip;
+        }
 #ifndef __LIBRETRO__
         *dest++ = 0; // for filters that read one pixel more
 #endif
@@ -3991,7 +3740,7 @@ void gbDrawLine()
 static void gbUpdateJoypads() {
     if (systemReadJoypads()) {
         // read joystick
-        if (gbSgbMode && gbSgbMultiplayer) {
+        if (GB_EMULATOR->HasSgbHw() && gbSgbMultiplayer) {
             if (gbSgbFourPlayers) {
                 gbJoymask[0] = systemReadJoypad(0);
                 gbJoymask[1] = systemReadJoypad(1);
@@ -4006,7 +3755,7 @@ static void gbUpdateJoypads() {
         }
     }
 
-    if (g_gbCartData.has_sensor()) {
+    if (GB_CART_DATA->has_sensor()) {
         systemUpdateMotionSensor();
     }
 }
@@ -4041,26 +3790,26 @@ void gbEmulate(int ticksToStop)
 
             clockTicks = gbGetNextEvent(clockTicks);
 
-            /*if(gbLcdTicksDelayed < clockTicks)
-        clockTicks = gbLcdTicksDelayed;
+            // if(gbLcdTicksDelayed < clockTicks)
+            //     clockTicks = gbLcdTicksDelayed;
 
-      if(gbLcdLYIncrementTicksDelayed < clockTicks)
-        clockTicks = gbLcdLYIncrementTicksDelayed;
+            // if(gbLcdLYIncrementTicksDelayed < clockTicks)
+            //     clockTicks = gbLcdLYIncrementTicksDelayed;
 
-      if(gbLcdLYIncrementTicks < clockTicks)
-        clockTicks = gbLcdLYIncrementTicks;
+            // if(gbLcdLYIncrementTicks < clockTicks)
+            //     clockTicks = gbLcdLYIncrementTicks;
 
-      if(gbSerialOn && (gbSerialTicks < clockTicks))
-        clockTicks = gbSerialTicks;
+            // if(gbSerialOn && (gbSerialTicks < clockTicks))
+            //     clockTicks = gbSerialTicks;
 
-      if(gbTimerOn && (((gbInternalTimer) & gbTimerMask[gbTimerMode])+1 < clockTicks))
-        clockTicks = ((gbInternalTimer) & gbTimerMask[gbTimerMode])+1;
+            // if(gbTimerOn && (((gbInternalTimer) & gbTimerMask[gbTimerMode])+1 < clockTicks))
+            //     clockTicks = ((gbInternalTimer) & gbTimerMask[gbTimerMode])+1;
 
-      if(soundTicks && (soundTicks < clockTicks))
-        clockTicks = soundTicks;
+            // if(soundTicks && (soundTicks < clockTicks))
+            //     clockTicks = soundTicks;
 
-      if ((clockTicks<=0) || (gbInterruptWait))
-          clockTicks = 1;*/
+            // if ((clockTicks<=0) || (gbInterruptWait))
+            //     clockTicks = 1;
 
         } else {
 
@@ -4131,7 +3880,7 @@ void gbEmulate(int ticksToStop)
                 register_LCDCBusy = 0;
         }
 
-        if (gbSgbMode) {
+        if (GB_EMULATOR->HasSgbHw()) {
             if (gbSgbPacketTimeout) {
                 gbSgbPacketTimeout -= clockTicks;
 
@@ -4147,7 +3896,7 @@ void gbEmulate(int ticksToStop)
         // DIV register emulation
         gbDivTicks -= clockTicks;
         while (gbDivTicks <= 0) {
-            gbMemory[0xff04] = ++register_DIV;
+            GB_EMULATOR->memory()[0xff04] = ++register_DIV;
             gbDivTicks += GBDIV_CLOCK_TICKS;
         }
 
@@ -4168,12 +3917,13 @@ void gbEmulate(int ticksToStop)
 
                 if ((gbLcdLYIncrementTicks <= 0) && (!gbLYChangeHappened)) {
                     gbLYChangeHappened = true;
-                    gbMemory[0xff44] = register_LY = (register_LY + 1) % 154;
+                    GB_EMULATOR->memory()[0xff44] = register_LY = (register_LY + 1) % 154;
 
                     if (register_LY == 0x91) {
-                        /* if (IFF & 0x80)
-              gbScreenOn = !gbScreenOn;
-            else*/ if (register_LCDC & 0x80)
+                        // if (IFF & 0x80)
+                        //     gbScreenOn = !gbScreenOn;
+                        // else
+                        if (register_LCDC & 0x80)
                             gbScreenOn = true;
                     }
 
@@ -4189,14 +3939,14 @@ void gbEmulate(int ticksToStop)
 
                     // GB only 'bug' : Halt state is broken one tick before LY==LYC interrupt
                     // is reflected in the registers.
-                    if ((gbHardware & 5) && (IFF & 0x80) && (register_LY == register_LYC)
+                    if ((!GB_EMULATOR->HasCgbHw()) && (IFF & 0x80) && (register_LY == register_LYC)
                         && (register_STAT & 0x40) && (register_LY != 0)) {
                         if (!((gbLcdModeDelayed != 1) && (register_LY == 0))) {
                             gbInt48Signal &= ~9;
                             gbCompareLYToLYC();
                             gbLYChangeHappened = false;
-                            gbMemory[0xff41] = register_STAT;
-                            gbMemory[0xff0f] = register_IF;
+                            GB_EMULATOR->memory()[0xff41] = register_STAT;
+                            GB_EMULATOR->memory()[0xff0f] = register_IF;
                         }
 
                         gbLcdLYIncrementTicksDelayed += GBLY_INCREMENT_CLOCK_TICKS - gbLine99Ticks + 1;
@@ -4213,17 +3963,17 @@ void gbEmulate(int ticksToStop)
                         if (register_LY == kGBHeight) {
                             // Yes, V-Blank
                             // set the LY increment counter
-                            if (gbHardware & 0x5) {
+                            if (!GB_EMULATOR->HasCgbHw()) {
                                 register_IF |= 1; // V-Blank interrupt
                             }
 
                             gbInt48Signal &= ~6;
                             if (register_STAT & 0x10) {
                                 // send LCD interrupt only if no interrupt 48h signal...
-                                if ((!(gbInt48Signal & 1)) && ((!(gbInt48Signal & 8)) || (gbHardware & 0x0a))) {
+                                if ((!(gbInt48Signal & 1)) && ((!(gbInt48Signal & 8)) || GB_EMULATOR->HasCgbHw())) {
                                     register_IF |= 2;
                                     gbInterruptLaunched |= 2;
-                                    if (gbHardware & 0xa)
+                                    if (GB_EMULATOR->HasCgbHw())
                                         gbInterruptWait = 1;
                                 }
                                 gbInt48Signal |= 2;
@@ -4259,7 +4009,7 @@ void gbEmulate(int ticksToStop)
                             if (!gbInt48Signal) {
                                 register_IF |= 2;
                                 gbInterruptLaunched |= 2;
-                                if ((gbHardware & 0xa) && (IFF & 0x80))
+                                if ((GB_EMULATOR->HasCgbHw()) && (IFF & 0x80))
                                     gbInterruptWait = 1;
                             }
                             gbInt48Signal |= 4;
@@ -4280,7 +4030,7 @@ void gbEmulate(int ticksToStop)
                             gbDrawSprites(false);
                             // Used to add a one tick delay when a window line is drawn.
                             //(fixes a part of Carmaggedon problem)
-                            if ((register_LCDC & 0x01 || gbCgbMode) && (register_LCDC & 0x20) && (gbWindowLine != -2)) {
+                            if ((register_LCDC & 0x01 || GB_EMULATOR->HasCgbHw()) && (register_LCDC & 0x20) && (gbWindowLine != -2)) {
 
                                 int tempinUseRegister_WY = inUseRegister_WY;
                                 int tempgbWindowLine = gbWindowLine;
@@ -4326,7 +4076,7 @@ void gbEmulate(int ticksToStop)
                             // send LCD interrupt only if no interrupt 48h signal...
                             if (!(gbInt48Signal & 8)) {
                                 register_IF |= 2;
-                                if ((gbHardware & 0xa) && (IFF & 0x80))
+                                if ((GB_EMULATOR->HasCgbHw()) && (IFF & 0x80))
                                     gbInterruptWait = 1;
                             }
                             gbInt48Signal |= 1;
@@ -4397,8 +4147,7 @@ void gbEmulate(int ticksToStop)
                             // set the LY increment counter
 
                             if (register_LCDC & 0x80) {
-                                if (gbHardware & 0xa) {
-
+                                if (GB_EMULATOR->HasCgbHw()) {
                                     register_IF |= 1; // V-Blank interrupt
                                     gbInterruptLaunched |= 1;
                                 }
@@ -4427,7 +4176,7 @@ void gbEmulate(int ticksToStop)
                             int newmask = gbJoymask[0] & 255;
 
                             if (newmask) {
-                                gbMemory[0xff0f] = register_IF |= 16;
+                                GB_EMULATOR->memory()[0xff0f] = register_IF |= 16;
                             }
 
                             newmask = (gbJoymask[0] >> 10);
@@ -4448,7 +4197,7 @@ void gbEmulate(int ticksToStop)
                             if (gbFrameSkipCount >= framesToSkip) {
 
                                 if (!gbSgbMask) {
-                                    if (gbBorderOn)
+                                    if (GB_EMULATOR->sgb_border_on())
                                         gbSgbRenderBorder();
                                     //if (gbScreenOn)
                                     systemDrawScreen();
@@ -4502,11 +4251,11 @@ void gbEmulate(int ticksToStop)
                                         gbDrawSprites(true);
                                     } else if (gbBlackScreen) {
                                         uint16_t color = gbColorOption ? gbColorFilter[0] : 0;
-                                        if (!gbCgbMode)
+                                        if (!GB_EMULATOR->HasCgbHw())
                                             color = gbColorOption ? gbColorFilter[gbPalette[3] & 0x7FFF] : gbPalette[3] & 0x7FFF;
                                         for (size_t i = 0; i < kGBWidth; i++) {
                                             gbLineMix[i] = color;
-                                            gbLineBuffer[i] = 0;
+                                            GB_EMULATOR->line_buffer()[i] = 0;
                                         }
                                     }
                                     gbDrawLine();
@@ -4527,10 +4276,19 @@ void gbEmulate(int ticksToStop)
                         {
                             gbInt48Signal &= ~8;
                             gbCompareLYToLYC();
-                            if ((gbInt48Signal == 8) && (!((register_LY == 0) && (gbHardware & 1))))
+                            if ((gbInt48Signal == 8) && (!((register_LY == 0) && GB_EMULATOR->IsDmg()))) {
                                 gbInterruptLaunched |= 2;
-                            if ((gbHardware & (gbSpeed ? 8 : 2)) && (register_LY == 0) && ((register_STAT & 0x44) == 0x44) && (gbLcdLYIncrementTicksDelayed == 0)) {
-                                gbInterruptWait = 1;
+                            }
+                            if ((register_LY == 0) && ((register_STAT & 0x44) == 0x44) && (gbLcdLYIncrementTicksDelayed == 0)) {
+                                if (gbSpeed) {
+                                    if (GB_EMULATOR->HasAgbHw()) {
+                                        gbInterruptWait = 1;
+                                    }
+                                } else {
+                                    if (GB_EMULATOR->IsCgb()) {
+                                        gbInterruptWait = 1;
+                                    }
+                                }
                             }
                         }
                     }
@@ -4543,12 +4301,12 @@ void gbEmulate(int ticksToStop)
                         else if (register_LY == 0)
                             gbLcdLYIncrementTicksDelayed += GBLY_INCREMENT_CLOCK_TICKS - gbLine99Ticks;
                     }
-                    gbMemory[0xff0f] = register_IF;
-                    gbMemory[0xff41] = register_STAT;
+                    GB_EMULATOR->memory()[0xff0f] = register_IF;
+                    GB_EMULATOR->memory()[0xff41] = register_STAT;
                 }
             }
-            gbMemory[0xff0f] = register_IF;
-            gbMemory[0xff41] = register_STAT = (register_STAT & 0xfc) | gbLcdModeDelayed;
+            GB_EMULATOR->memory()[0xff0f] = register_IF;
+            GB_EMULATOR->memory()[0xff41] = register_STAT = (register_STAT & 0xfc) | gbLcdModeDelayed;
         } else {
 
             // Used to update the screen with white lines when it's off.
@@ -4567,11 +4325,11 @@ void gbEmulate(int ticksToStop)
                     uint8_t register_LYLcdOff = ((register_LY + 154) % 154);
                     for (register_LY = 0; register_LY <= 0x90; register_LY++) {
                         uint16_t color = gbColorOption ? gbColorFilter[0x7FFF] : 0x7FFF;
-                        if (!gbCgbMode)
+                        if (!GB_EMULATOR->HasCgbHw())
                             color = gbColorOption ? gbColorFilter[gbPalette[0] & 0x7FFF] : gbPalette[0] & 0x7FFF;
                         for (size_t i = 0; i < kGBWidth; i++) {
                             gbLineMix[i] = color;
-                            gbLineBuffer[i] = 0;
+                            GB_EMULATOR->line_buffer()[i] = 0;
                         }
                         gbDrawLine();
                     }
@@ -4588,11 +4346,11 @@ void gbEmulate(int ticksToStop)
                     if (register_LY < kGBHeight) {
 
                         uint16_t color = gbColorOption ? gbColorFilter[0x7FFF] : 0x7FFF;
-                        if (!gbCgbMode)
+                        if (!GB_EMULATOR->HasCgbHw())
                             color = gbColorOption ? gbColorFilter[gbPalette[0] & 0x7FFF] : gbPalette[0] & 0x7FFF;
                         for (size_t i = 0; i < kGBWidth; i++) {
                             gbLineMix[i] = color;
-                            gbLineBuffer[i] = 0;
+                            GB_EMULATOR->line_buffer()[i] = 0;
                         }
                         gbDrawLine();
                     } else if ((register_LY == kGBHeight) && (!systemFrameSkip)) {
@@ -4603,8 +4361,9 @@ void gbEmulate(int ticksToStop)
                             gbWhiteScreen = 2;
 
                             if (!gbSgbMask) {
-                                if (gbBorderOn)
+                                if (GB_EMULATOR->sgb_border_on()) {
                                     gbSgbRenderBorder();
+                                }
                                 //if (gbScreenOn)
                                 systemDrawScreen();
                                 if (systemPauseOnFrame())
@@ -4637,11 +4396,11 @@ void gbEmulate(int ticksToStop)
             }
         }
 
-        gbMemory[0xff41] = register_STAT;
+        GB_EMULATOR->memory()[0xff41] = register_STAT;
 
 #ifndef NO_LINK
         // serial emulation
-        gbSerialOn = (gbMemory[0xff02] & 0x80);
+        gbSerialOn = (GB_EMULATOR->memory()[0xff02] & 0x80);
         static int SIOctr = 0;
         SIOctr++;
         if (SIOctr % 5)
@@ -4655,13 +4414,13 @@ void gbEmulate(int ticksToStop)
                         // increment number of shifted bits
                         gbSerialBits++;
                         linkProc();
-                        if (gbSerialOn && (gbMemory[0xff02] & 1)) {
+                        if (gbSerialOn && (GB_EMULATOR->memory()[0xff02] & 1)) {
                             if (gbSerialBits == 8) {
                                 gbSerialBits = 0;
-                                gbMemory[0xff01] = 0xff;
-                                gbMemory[0xff02] &= 0x7f;
+                                GB_EMULATOR->memory()[0xff01] = 0xff;
+                                GB_EMULATOR->memory()[0xff02] &= 0x7f;
                                 gbSerialOn = 0;
-                                gbMemory[0xff0f] = register_IF |= 8;
+                                GB_EMULATOR->memory()[0xff0f] = register_IF |= 8;
                                 gbSerialTicks = 0;
                             }
                         }
@@ -4669,13 +4428,13 @@ void gbEmulate(int ticksToStop)
                     }
                 } else {
 #endif
-                    if (gbMemory[0xff02] & 1) { //internal clocks (master)
+                    if (GB_EMULATOR->memory()[0xff02] & 1) { //internal clocks (master)
                         gbSerialTicks -= clockTicks;
 
                         // overflow
                         while (gbSerialTicks <= 0) {
                             // shift serial byte to right and put a 1 bit in its place
-                            //      gbMemory[0xff01] = 0x80 | (gbMemory[0xff01]>>1);
+                            //      GB_EMULATOR->memory()[0xff01] = 0x80 | (GB_EMULATOR->memory()[0xff01]>>1);
                             // increment number of shifted bits
                             gbSerialBits++;
                             if (gbSerialBits >= 8) {
@@ -4692,7 +4451,7 @@ void gbEmulate(int ticksToStop)
                         // overflow
                         while (gbSerialTicks <= 0) {
                             // shift serial byte to right and put a 1 bit in its place
-                            //      gbMemory[0xff01] = 0x80 | (gbMemory[0xff01]>>1);
+                            //      GB_EMULATOR->memory()[0xff01] = 0x80 | (GB_EMULATOR->memory()[0xff01]>>1);
                             // increment number of shifted bits
                             gbSerialBits++;
                             if (gbSerialBits >= 8) {
@@ -4700,23 +4459,22 @@ void gbEmulate(int ticksToStop)
                                 uint16_t dat = 0;
                                 if (LinkIsWaiting)
                                     if (gbSerialFunction) { // external device
-                                        gbSIO_SC = gbMemory[0xff02];
+                                        gbSIO_SC = GB_EMULATOR->memory()[0xff02];
                                         if (!LinkFirstTime) {
-                                            dat = (gbSerialFunction(gbMemory[0xff01]) << 8) | 1;
+                                            dat = (gbSerialFunction(GB_EMULATOR->memory()[0xff01]) << 8) | 1;
                                         } else //external clock not suppose to start a transfer, but there are time where both side using external clock and couldn't communicate properly
                                         {
-                                            if (gbMemory)
-                                                gbSerialOn = (gbMemory[0xff02] & 0x80);
-                                            dat = gbLinkUpdate(gbMemory[0xff01], gbSerialOn);
+                                            gbSerialOn = GB_EMULATOR->memory()[0xff02] & 0x80;
+                                            dat = gbLinkUpdate(GB_EMULATOR->memory()[0xff01], gbSerialOn);
                                         }
-                                        gbMemory[0xff01] = (dat >> 8);
+                                        GB_EMULATOR->memory()[0xff01] = (dat >> 8);
                                     } //else
                                 gbSerialTicks = 0;
-                                if ((dat & 1) && (gbMemory[0xff02] & 0x80)) //(dat & 1)==1 when reply data received
+                                if ((dat & 1) && (GB_EMULATOR->memory()[0xff02] & 0x80)) //(dat & 1)==1 when reply data received
                                 {
-                                    gbMemory[0xff02] &= 0x7f;
+                                    GB_EMULATOR->memory()[0xff02] &= 0x7f;
                                     gbSerialOn = 0;
-                                    gbMemory[0xff0f] = register_IF |= 8;
+                                    GB_EMULATOR->memory()[0xff0f] = register_IF |= 8;
                                 }
                                 gbSerialBits = 0;
                             } else
@@ -4732,14 +4490,14 @@ void gbEmulate(int ticksToStop)
         SIOctr++;
         if (SIOctr % 5) {
             if (gbSerialOn) {
-                if  (gbMemory[0xff02] & 1) {
+                if  (GB_EMULATOR->memory()[0xff02] & 1) {
                     gbSerialTicks -= clockTicks;
                     while (gbSerialTicks <= 0) {
-                        gbMemory[0xff01] = (gbMemory[0xff01] << 1) | 1;
+                        GB_EMULATOR->memory()[0xff01] = (GB_EMULATOR->memory()[0xff01] << 1) | 1;
                         gbSerialBits++;
                         if (gbSerialBits >= 8) {
-                            gbMemory[0xff02] &= 0x7f;
-                            gbMemory[0xff0f] = register_IF |= 8;
+                            GB_EMULATOR->memory()[0xff02] &= 0x7f;
+                            GB_EMULATOR->memory()[0xff0f] = register_IF |= 8;
                             gbSerialOn = 0;
                             gbSerialBits = 0;
                         } else
@@ -4771,14 +4529,14 @@ void gbEmulate(int ticksToStop)
                     // reload timer modulo
                     register_TIMA = register_TMA;
                     // flag interrupt
-                    gbMemory[0xff0f] = register_IF |= 4;
+                    GB_EMULATOR->memory()[0xff0f] = register_IF |= 4;
                 }
                 gbTimerTicks += gbTimerClockTicks;
             }
             gbTimerOnChange = false;
             gbTimerModeChange = false;
 
-            gbMemory[0xff05] = register_TIMA;
+            GB_EMULATOR->memory()[0xff05] = register_TIMA;
         }
 
         gbInternalTimer -= clockTicks;
@@ -4888,19 +4646,16 @@ void gbEmulate(int ticksToStop)
     }
 }
 
-bool gbLoadRomData(const char* data, size_t size) {
-    if (gbRom != nullptr) {
+bool gbLoadRomData(const uint8_t* data, size_t size) {
+    if (GB_EMULATOR->status() == core::gbEmulator::Status::kRunning) {
         gbCleanUp();
     }
 
     systemSaveUpdateCounter = SYSTEM_SAVE_NOT_UPDATED;
 
-    gbRom = (uint8_t*)calloc(1, size);
-    if (gbRom == nullptr) {
+    if (!GB_EMULATOR->LoadRom(data, size)) {
         return false;
     }
-
-    memcpy(gbRom, data, size);
 
     g_gbBatteryError = false;
 
@@ -4914,34 +4669,17 @@ bool gbLoadRomData(const char* data, size_t size) {
         return false;
     }
 
-    gbMemory = (uint8_t*)malloc(65536);
-    if (gbMemory == nullptr) {
-        return false;
-    }
-
     pix = (uint8_t*)calloc(1, kGBPixSize);
     if (pix == nullptr) {
         return false;
     }
 
-    gbLineBuffer = (uint16_t*)malloc(kGBLineBufferSize);
-    if (gbLineBuffer == nullptr) {
-        return false;
-    }
-
-    return gbInitializeRom(size);
+    return true;
 }
 
 #ifndef __LIBRETRO__
 bool gbApplyPatch(const char* patchName) {
-    int size = g_gbCartData.rom_size();
-    if (!applyPatch(patchName, &gbRom, &size)) {
-        return false;
-    }
-
-    // We should re-parse the header every time in case a patch has changed the
-    // ROM header.
-    return gbInitializeRom(size);
+    return GB_EMULATOR->ApplyPatch(patchName);
 }
 #endif  // __LIBRETRO__
 
@@ -4954,7 +4692,7 @@ unsigned int gbWriteSaveState(uint8_t* data)
 
     utilWriteIntMem(data, GBSAVE_GAME_VERSION);
 
-    utilWriteMem(data, &gbRom[0x134], 15);
+    utilWriteMem(data, &GB_EMULATOR->rom()[0x134], 15);
 
     utilWriteIntMem(data, coreOptions.useBios);
     utilWriteIntMem(data, inBios);
@@ -4963,7 +4701,7 @@ unsigned int gbWriteSaveState(uint8_t* data)
 
     utilWriteMem(data, &IFF, 2);
 
-    if (gbSgbMode) {
+    if (GB_EMULATOR->HasSgbHw()) {
         gbSgbSaveGame(data);
     }
 
@@ -4973,25 +4711,25 @@ unsigned int gbWriteSaveState(uint8_t* data)
     utilWriteMem(data, &gbDataMBC5, sizeof(gbDataMBC5));
     utilWriteMem(data, &gbDataHuC1, sizeof(gbDataHuC1));
     utilWriteMem(data, &gbDataHuC3, sizeof(gbDataHuC3));
-    if (g_gbCartData.mapper_type() == gbCartData::MapperType::kHuC3)
+    if (GB_CART_DATA->mapper_type() == gbCartData::MapperType::kHuC3)
         utilWriteMem(data, &gbRTCHuC3, sizeof(gbRTCHuC3));
     utilWriteMem(data, &gbDataTAMA5, sizeof(gbDataTAMA5));
-    if (gbTAMA5ram != nullptr)
-        utilWriteMem(data, gbTAMA5ram, kTama5RamSize);
+    if (GB_EMULATOR->tama5_ram() != nullptr)
+        utilWriteMem(data, GB_EMULATOR->tama5_ram(), kTama5RamSize);
     utilWriteMem(data, &gbDataMMM01, sizeof(gbDataMMM01));
 
     utilWriteMem(data, gbPalette, sizeof(gbPalette));
 
-    utilWriteMem(data, &gbMemory[0x8000], 0x8000);
+    utilWriteMem(data, &GB_EMULATOR->memory()[0x8000], 0x8000);
 
-    if (g_gbCartData.HasRam()) {
-        utilWriteIntMem(data, g_gbCartData.ram_size());
-        utilWriteMem(data, gbRam, g_gbCartData.ram_size());
+    if (GB_CART_DATA->HasRam()) {
+        utilWriteIntMem(data, GB_CART_DATA->ram_size());
+        utilWriteMem(data, GB_EMULATOR->ram(), GB_CART_DATA->ram_size());
     }
 
-    if (gbCgbMode) {
-        utilWriteMem(data, gbVram, kGBVRamSize);
-        utilWriteMem(data, gbWram, kGBWRamSize);
+    if (GB_EMULATOR->HasCgbHw()) {
+        utilWriteMem(data, GB_EMULATOR->vram(), kGBVRamSize);
+        utilWriteMem(data, GB_EMULATOR->wram(), kGBWRamSize);
     }
 
     gbSoundSaveGame(data);
@@ -5030,10 +4768,10 @@ bool gbReadSaveState(const uint8_t* data)
 
     utilReadMem(romname, data, 15);
 
-    if (memcmp(&gbRom[0x134], romname, 15) != 0) {
+    if (memcmp(&GB_EMULATOR->rom()[0x134], romname, 15) != 0) {
         systemMessage(MSG_CANNOT_LOAD_SGM_FOR,
             N_("Cannot load save game for %s. Playing %s"),
-            romname, &gbRom[0x134]);
+            romname, &GB_EMULATOR->rom()[0x134]);
         return false;
     }
 
@@ -5060,34 +4798,34 @@ bool gbReadSaveState(const uint8_t* data)
     utilReadDataMem(data, gbSaveGameStruct);
 
     // Correct crash when loading color gameboy save in regular gameboy type.
-    if (gbCgbMode) {
-        if (gbVram == nullptr) {
-            gbVram = (uint8_t*)calloc(1, kGBVRamSize);
-            if (gbVram == nullptr) {
+    if (GB_EMULATOR->HasCgbHw()) {
+        if (GB_EMULATOR->vram() == nullptr) {
+            GB_EMULATOR->vram() = (uint8_t*)calloc(1, kGBVRamSize);
+            if (GB_EMULATOR->vram() == nullptr) {
                 return false;
             }
         }
-        if (gbWram == nullptr) {
-            gbWram = (uint8_t*)malloc(kGBWRamSize);
-            if (gbWram == nullptr) {
+        if (GB_EMULATOR->wram() == nullptr) {
+            GB_EMULATOR->wram() = (uint8_t*)malloc(kGBWRamSize);
+            if (GB_EMULATOR->wram() == nullptr) {
                 return false;
             }
         }
         memset(gbPalette, 0, sizeof(gbPalette));
     } else {
-        if (gbVram != nullptr) {
-            free(gbVram);
-            gbVram = nullptr;
+        if (GB_EMULATOR->vram() != nullptr) {
+            free(GB_EMULATOR->vram());
+            GB_EMULATOR->vram() = nullptr;
         }
-        if (gbWram != nullptr) {
-            free(gbWram);
-            gbWram = nullptr;
+        if (GB_EMULATOR->wram() != nullptr) {
+            free(GB_EMULATOR->wram());
+            GB_EMULATOR->wram() = nullptr;
         }
     }
 
     utilReadMem(&IFF, data, 2);
 
-    if (gbSgbMode) {
+    if (GB_EMULATOR->HasSgbHw()) {
         gbSgbReadGame(data);
     } else {
         gbSgbMask = 0; // loading a game at the wrong time causes no display
@@ -5099,22 +4837,22 @@ bool gbReadSaveState(const uint8_t* data)
     utilReadMem(&gbDataMBC5, data, sizeof(gbDataMBC5));
     utilReadMem(&gbDataHuC1, data, sizeof(gbDataHuC1));
     utilReadMem(&gbDataHuC3, data, sizeof(gbDataHuC3));
-    if (g_gbCartData.mapper_type() == gbCartData::MapperType::kHuC3)
+    if (GB_CART_DATA->mapper_type() == gbCartData::MapperType::kHuC3)
         utilReadMem(&gbRTCHuC3, data, sizeof(gbRTCHuC3));
     utilReadMem(&gbDataTAMA5, data, sizeof(gbDataTAMA5));
-    if (gbTAMA5ram != NULL) {
-        utilReadMem(gbTAMA5ram, data, kTama5RamSize);
+    if (GB_EMULATOR->tama5_ram() != NULL) {
+        utilReadMem(GB_EMULATOR->tama5_ram(), data, kTama5RamSize);
     }
     utilReadMem(&gbDataMMM01, data, sizeof(gbDataMMM01));
 
     utilReadMem(gbPalette, data, sizeof(gbPalette));
 
-    utilReadMem(&gbMemory[0x8000], data, 0x8000);
+    utilReadMem(&GB_EMULATOR->memory()[0x8000], data, 0x8000);
 
-    if (g_gbCartData.HasRam()) {
-        int cartRamSize = g_gbCartData.ram_size();
+    if (GB_CART_DATA->HasRam()) {
+        int cartRamSize = GB_CART_DATA->ram_size();
         int ramSize = utilReadIntMem(data);
-        utilReadMem(gbRam, data, std::min(cartRamSize, ramSize)); //read
+        utilReadMem(GB_EMULATOR->ram(), data, std::min(cartRamSize, ramSize)); //read
         /*if (ramSize > cartRamSize)
             utilGzSeek(gzFile, ramSize - cartRamSize, SEEK_CUR);*/ // Libretro Note: ????
     }
@@ -5127,36 +4865,36 @@ bool gbReadSaveState(const uint8_t* data)
     memset(gbSpritesTicks, 0x0, sizeof(gbSpritesTicks));
 
     if (inBios) {
-        gbMemoryMap[0x00] = &gbMemory[0x0000];
-        if (gbHardware & 5) {
-            memcpy((uint8_t*)(gbMemory), (uint8_t*)(gbRom), 0x1000);
-            memcpy((uint8_t*)(gbMemory), (uint8_t*)(bios), kGBBiosSize);
-        } else if (gbHardware & 2) {
-            memcpy((uint8_t*)(gbMemory), (uint8_t*)(bios), kCGBBiosSize);
-            memcpy((uint8_t*)(gbMemory + 0x100), (uint8_t*)(gbRom + 0x100), 0x100);
+        gbMemoryMap[0x00] = &GB_EMULATOR->memory()[0x0000];
+        if (!GB_EMULATOR->HasCgbHw()) {
+            memcpy((uint8_t*)(GB_EMULATOR->memory()), (uint8_t*)(GB_EMULATOR->rom()), 0x1000);
+            memcpy((uint8_t*)(GB_EMULATOR->memory()), (uint8_t*)(bios), kGBBiosSize);
+        } else if (GB_EMULATOR->IsCgb()) {
+            memcpy((uint8_t*)(GB_EMULATOR->memory()), (uint8_t*)(bios), kCGBBiosSize);
+            memcpy((uint8_t*)(GB_EMULATOR->memory() + 0x100), (uint8_t*)(GB_EMULATOR->rom() + 0x100), 0x100);
         }
 
     } else {
-        gbMemoryMap[0x00] = &gbRom[0x0000];
+        gbMemoryMap[0x00] = &GB_EMULATOR->rom()[0x0000];
     }
 
-    gbMemoryMap[0x01] = &gbRom[0x1000];
-    gbMemoryMap[0x02] = &gbRom[0x2000];
-    gbMemoryMap[0x03] = &gbRom[0x3000];
-    gbMemoryMap[0x04] = &gbRom[0x4000];
-    gbMemoryMap[0x05] = &gbRom[0x5000];
-    gbMemoryMap[0x06] = &gbRom[0x6000];
-    gbMemoryMap[0x07] = &gbRom[0x7000];
-    gbMemoryMap[0x08] = &gbMemory[0x8000];
-    gbMemoryMap[0x09] = &gbMemory[0x9000];
-    gbMemoryMap[0x0a] = &gbMemory[0xa000];
-    gbMemoryMap[0x0b] = &gbMemory[0xb000];
-    gbMemoryMap[0x0c] = &gbMemory[0xc000];
-    gbMemoryMap[0x0d] = &gbMemory[0xd000];
-    gbMemoryMap[0x0e] = &gbMemory[0xe000];
-    gbMemoryMap[0x0f] = &gbMemory[0xf000];
+    gbMemoryMap[0x01] = &GB_EMULATOR->rom()[0x1000];
+    gbMemoryMap[0x02] = &GB_EMULATOR->rom()[0x2000];
+    gbMemoryMap[0x03] = &GB_EMULATOR->rom()[0x3000];
+    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[0x4000];
+    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[0x5000];
+    gbMemoryMap[0x06] = &GB_EMULATOR->rom()[0x6000];
+    gbMemoryMap[0x07] = &GB_EMULATOR->rom()[0x7000];
+    gbMemoryMap[0x08] = &GB_EMULATOR->memory()[0x8000];
+    gbMemoryMap[0x09] = &GB_EMULATOR->memory()[0x9000];
+    gbMemoryMap[0x0a] = &GB_EMULATOR->memory()[0xa000];
+    gbMemoryMap[0x0b] = &GB_EMULATOR->memory()[0xb000];
+    gbMemoryMap[0x0c] = &GB_EMULATOR->memory()[0xc000];
+    gbMemoryMap[0x0d] = &GB_EMULATOR->memory()[0xd000];
+    gbMemoryMap[0x0e] = &GB_EMULATOR->memory()[0xe000];
+    gbMemoryMap[0x0f] = &GB_EMULATOR->memory()[0xf000];
 
-    switch (g_gbCartData.mapper_type()) {
+    switch (GB_CART_DATA->mapper_type()) {
         case gbCartData::MapperType::kNone:
         case gbCartData::MapperType::kMbc1:
             memoryUpdateMapMBC1();
@@ -5195,27 +4933,27 @@ bool gbReadSaveState(const uint8_t* data)
             break;
     }
 
-    if (gbCgbMode) {
-        utilReadMem(gbVram, data, kGBVRamSize);
-        utilReadMem(gbWram, data, kGBWRamSize);
+    if (GB_EMULATOR->HasCgbHw()) {
+        utilReadMem(GB_EMULATOR->vram(), data, kGBVRamSize);
+        utilReadMem(GB_EMULATOR->wram(), data, kGBWRamSize);
 
         int value = register_SVBK;
         if (value == 0)
             value = 1;
 
-        gbMemoryMap[0x08] = &gbVram[register_VBK * 0x2000];
-        gbMemoryMap[0x09] = &gbVram[register_VBK * 0x2000 + 0x1000];
-        gbMemoryMap[0x0c] = &gbWram[0x0000];
-        gbMemoryMap[0x0d] = &gbWram[value * 0x1000];
+        gbMemoryMap[0x08] = &GB_EMULATOR->vram()[register_VBK * 0x2000];
+        gbMemoryMap[0x09] = &GB_EMULATOR->vram()[register_VBK * 0x2000 + 0x1000];
+        gbMemoryMap[0x0c] = &GB_EMULATOR->wram()[0x0000];
+        gbMemoryMap[0x0d] = &GB_EMULATOR->wram()[value * 0x1000];
     }
 
     gbSoundReadGame(data);
 
-    if (gbCgbMode && gbSgbMode) {
-        gbSgbMode = false;
+    if (GB_EMULATOR->HasCgbHw() && GB_EMULATOR->HasSgbHw()) {
+        GB_EMULATOR->HasSgbHw() = false;
     }
 
-    if (gbBorderOn && !gbSgbMask) {
+    if (GB_EMULATOR->sgb_border_on() && !gbSgbMask) {
         gbSgbRenderBorder();
     }
 

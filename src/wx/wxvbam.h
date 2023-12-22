@@ -20,6 +20,7 @@
 
 #include "../gb/gb.h"
 #include "../gb/gbCheats.h"
+#include "../gb/gbEmulator.h"
 #include "../gb/gbGlobals.h"
 #include "../gb/gbSound.h"
 #include "../gba/Cheats.h"
@@ -59,15 +60,17 @@ inline std::string ToString(const wxChar* aString)
 
 class MainFrame;
 
-class wxvbamApp : public wxApp {
+class wxvbamApp : public wxApp, public core::gbEmulator::Client {
 public:
     wxvbamApp()
-        : wxApp()
-        , pending_fullscreen(false)
-        , frame(NULL)
-        , using_wayland(false)
-    {
+        : wxApp(),
+          pending_fullscreen(false),
+          frame(NULL),
+          using_wayland(false),
+          gb_emulator_(this) {
+        core::gbEmulator::Set(&gb_emulator_);
     }
+
     virtual bool OnInit();
     virtual int OnRun();
     virtual bool OnCmdLineHelp(wxCmdLineParser&);
@@ -132,8 +135,12 @@ protected:
     int console_status = 0;
 
 private:
+    // gbEmulator::Client implementation.
+    void OnSgbBorderModeChanged(bool sgb_border_on) override;
+
     wxPathList config_path;
     char* home = nullptr;
+    core::gbEmulator gb_emulator_;
 
     // Main configuration file.
     wxFileName config_file_;
@@ -610,7 +617,6 @@ public:
     void HidePointer();
     void HideMenuBar();
     void ShowMenuBar();
-    void OnGBBorderChanged(config::Option* option);
     void UpdateLcdFilter();
     void SuspendScreenSaver();
     void UnsuspendScreenSaver();
@@ -630,7 +636,6 @@ protected:
 private:
     const config::OptionsObserver render_observer_;
     const config::OptionsObserver scale_observer_;
-    const config::OptionsObserver gb_border_observer_;
     const config::OptionsObserver gb_palette_observer_;
     const config::OptionsObserver gb_declick_observer_;
     const config::OptionsObserver lcd_filters_observer_;

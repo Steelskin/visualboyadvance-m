@@ -47,8 +47,10 @@
 
 #include "../Util.h"
 #include "../common/Patch.h"
+#include "../common/sizes.h"
 #include "../gb/gb.h"
 #include "../gb/gbCheats.h"
+#include "../gb/gbEmulator.h"
 #include "../gb/gbGlobals.h"
 #include "../gb/gbSound.h"
 #include "../gba/Cheats.h"
@@ -1552,6 +1554,37 @@ void SetHomeDataDir()
         mkdir(homeDataDir, 0755);
 }
 
+class gbEmulatorClient : public core::gbEmulator::Client {
+public:
+    gbEmulatorClient() : gb_emulator_(this) {}
+    ~gbEmulatorClient() override = default;
+
+    core::gbEmulator* gb_emulator() { return &gb_emulator_; }
+
+private:
+    // core::gbEmulator::Client implementation.
+    void OnSgbBorderModeChanged(bool sgb_border_on) override {
+        if (sgb_border_on) {
+            sizeX = kSGBWidth;
+            sizeY = kSGBHeight;
+            gbBorderLineSkip = kSGBWidth;
+            gbBorderColumnSkip = kSGBBorderWidth;
+            gbBorderRowSkip = kSGBBorderHeight;
+        } else {
+            sizeX = kGBWidth;
+            sizeY = kGBHeight;
+            gbBorderLineSkip = kGBWidth;
+            gbBorderColumnSkip = 0;
+            gbBorderRowSkip = 0;
+        }
+
+        sdlInitVideo();
+        filterFunction = initFilter(filter, systemColorDepth, sizeX);
+    }
+
+    core::gbEmulator gb_emulator_;
+} gbEmulatorClient;
+
 int main(int argc, char** argv)
 {
     fprintf(stdout, "%s\n", vba_name_and_subversion);
@@ -1561,8 +1594,10 @@ int main(int argc, char** argv)
     SetHomeConfigDir();
     SetHomeDataDir();
 
+    // Set up the global GB emulator.
+    core::gbEmulator::Set(gbEmulatorClient.gb_emulator());
+
     frameSkip = 2;
-    gbBorderOn = false;
 
     coreOptions.parseDebug = true;
 
@@ -1720,7 +1755,7 @@ int main(int argc, char** argv)
                 gbGetHardwareType();
 
                 // used for the handling of the gb Boot Rom
-                if (gbHardware & 7)
+                if (!GB_EMULATOR->HasAgbHw())
                     gbCPUInit(biosFileNameGB, coreOptions.useBios);
 
                 cartridgeType = IMAGE_GB;
@@ -1807,19 +1842,12 @@ int main(int argc, char** argv)
         sizeY = 160;
         systemFrameSkip = frameSkip;
     } else if (cartridgeType == IMAGE_GB) {
-        if (gbBorderOn) {
-            sizeX = 256;
-            sizeY = 224;
-            gbBorderLineSkip = 256;
-            gbBorderColumnSkip = 48;
-            gbBorderRowSkip = 40;
-        } else {
-            sizeX = 160;
-            sizeY = 144;
-            gbBorderLineSkip = 160;
-            gbBorderColumnSkip = 0;
-            gbBorderRowSkip = 0;
-        }
+        // Assume no border, this will be updated later on if needs be.
+        sizeX = kGBWidth;
+        sizeY = kGBHeight;
+        gbBorderLineSkip = kGBWidth;
+        gbBorderColumnSkip = 0;
+        gbBorderRowSkip = 0;
         systemFrameSkip = gbFrameSkip;
     } else {
         sizeX = 320;
@@ -1918,7 +1946,7 @@ int main(int argc, char** argv)
         SDL_GL_DeleteContext(glcontext);
     }
 
-    if (gbRom != NULL || rom != NULL) {
+    if (GB_EMULATOR->status() == core::gbEmulator::Status::kRunning || rom != NULL) {
         sdlWriteBattery();
         emulator.emuCleanUp();
     }
@@ -1961,7 +1989,7 @@ void systemMessage(int num, const char* msg, ...)
 void drawScreenMessage(uint8_t* screen, int pitch, int x, int y, unsigned int duration)
 {
     if (screenMessage) {
-        if (cartridgeType == 1 && gbBorderOn) {
+        if (cartridgeType == 1 && GB_EMULATOR->sgb_border_on()) {
             gbSgbRenderBorder();
         }
         if (((systemGetClock() - screenMessageTime) < duration) && !disableStatusMessages) {
@@ -2241,19 +2269,6 @@ bool systemPauseOnFrame()
         return true;
     }
     return false;
-}
-
-void systemGbBorderOn()
-{
-    sizeX = 256;
-    sizeY = 224;
-    gbBorderLineSkip = 256;
-    gbBorderColumnSkip = 48;
-    gbBorderRowSkip = 40;
-
-    sdlInitVideo();
-
-    filterFunction = initFilter(filter, systemColorDepth, sizeX);
 }
 
 bool systemReadJoypads()

@@ -1410,3 +1410,20 @@ int wxvbamApp::FilterEvent(wxEvent& event)
         return frame->FilterEvent(event);
     return wxApp::FilterEvent(event);
 }
+
+void wxvbamApp::OnSgbBorderModeChanged(bool sgb_border_on) {
+    if (!frame) {
+        return;
+    }
+
+    GameArea* panel = frame->GetPanel();
+    if (!panel) {
+        return;
+    }
+
+    if (panel->game_type() == IMAGE_GB && sgb_border_on) {
+        panel->AddBorder();
+    } else {
+        panel->DelBorder();
+    }
+}

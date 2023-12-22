@@ -35,6 +35,8 @@ constexpr size_t kGBWidth = 160;
 constexpr size_t kGBHeight = 144;
 constexpr size_t kSGBWidth = 256;
 constexpr size_t kSGBHeight = 224;
+constexpr size_t kSGBBorderWidth = (kSGBWidth - kGBWidth) / 2;
+constexpr size_t kSGBBorderHeight = (kSGBHeight - kGBHeight) / 2;
 #ifdef __LIBRETRO__
 constexpr size_t kGBPixSize = 4 * kSGBWidth * kSGBHeight;
 #else
@@ -49,7 +51,11 @@ constexpr size_t kGBVRamSize = k16KiB;
 // Game Boy WRAM is 32 KiB.
 constexpr size_t kGBWRamSize = k32KiB;
 
+constexpr size_t kGBMemorySize = k64KiB;
+
 // A Game Boy line buffer size is the width of the screen at 2 bytes per pizel.
 constexpr size_t kGBLineBufferSize = kGBWidth * 2;
+
+constexpr size_t kTama5RamSize = k256B;
 
 #endif  // VBAM_COMMON_SIZES_H_

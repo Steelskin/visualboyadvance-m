@@ -13,10 +13,10 @@
 
 #include <wx/xrc/xmlres.h>
 
+#include "../gb/gbGlobals.h"
 #include "config/option-observer.h"
 #include "config/option-proxy.h"
 #include "dialogs/validated-child.h"
-#include "widgets/group-check-box.h"
 #include "widgets/option-validator.h"
 
 namespace dialogs {
@@ -180,15 +180,18 @@ private:
             case 0:
                 OPTION(kPrefBorderOn) = false;
                 OPTION(kPrefBorderAutomatic) = false;
+                gbOptions.sgbBorderMode = SgbBorderMode::AlwaysOff;
                 break;
 
             case 1:
                 OPTION(kPrefBorderOn) = true;
+                gbOptions.sgbBorderMode = SgbBorderMode::AlwaysOn;
                 break;
 
             case 2:
                 OPTION(kPrefBorderOn) = false;
                 OPTION(kPrefBorderAutomatic) = true;
+                gbOptions.sgbBorderMode = SgbBorderMode::Automatic;
                 break;
         }
 

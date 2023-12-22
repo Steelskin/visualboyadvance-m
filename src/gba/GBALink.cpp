@@ -2504,8 +2504,8 @@ uint8_t gbStartLink(uint8_t b) //used on internal clock
 {
     uint8_t dat = 0xff; //master (w/ internal clock) will gets 0xff if slave is turned off (or not ready yet also?)
     //if(linkid) return 0xff; //b; //Slave shouldn't be sending from here
-    //int gbSerialOn = (gbMemory[0xff02] & 0x80); //not needed?
-    gba_link_enabled = true; //(gbMemory[0xff02]!=0); //not needed?
+    //int gbSerialOn = (GB_EMULATOR->memory()[0xff02] & 0x80); //not needed?
+    gba_link_enabled = true; //(GB_EMULATOR->memory()[0xff02]!=0); //not needed?
     rfu_enabled = false;
 
     if (!gba_link_enabled)
@@ -2546,7 +2546,7 @@ uint16_t gbLinkUpdate(uint8_t b, int gbSerialOn) //used on external clock
     uint8_t dat = b; //0xff; //slave (w/ external clocks) won't be getting 0xff if master turned off
     uint8_t recvd = 0;
 
-    gba_link_enabled = true; //(gbMemory[0xff02]!=0);
+    gba_link_enabled = true; //(GB_EMULATOR->memory()[0xff02]!=0);
     rfu_enabled = false;
 
     if (gbSerialOn) {
@@ -4012,8 +4012,8 @@ uint8_t gbStartLinkIPC(uint8_t b) //used on internal clock
     uint8_t dat = 0xff; //master (w/ internal clock) will gets 0xff if slave is turned off (or not ready yet also?)
     //if(linkid) return 0xff; //b; //Slave shouldn't be sending from here
     BOOL sent = false;
-    //int gbSerialOn = (gbMemory[0xff02] & 0x80); //not needed?
-    gba_link_enabled = true; //(gbMemory[0xff02]!=0); //not needed?
+    //int gbSerialOn = (GB_EMULATOR->memory()[0xff02] & 0x80); //not needed?
+    gba_link_enabled = true; //(GB_EMULATOR->memory()[0xff02]!=0); //not needed?
     rfu_enabled = false;
 
     if (!gba_link_enabled)
@@ -4057,7 +4057,7 @@ uint16_t gbLinkUpdateIPC(uint8_t b, int gbSerialOn) //used on external clock
     BOOL recvd = false;
     int idx = 0;
 
-    gba_link_enabled = true; //(gbMemory[0xff02]!=0);
+    gba_link_enabled = true; //(GB_EMULATOR->memory()[0xff02]!=0);
     rfu_enabled = false;
 
     if (gbSerialOn) {

@@ -587,11 +587,11 @@ public:
     {
         uint8_t *bank0, *bank1;
 
-        if (gbCgbMode) {
-            bank0 = &gbVram[0x0000];
-            bank1 = &gbVram[0x2000];
+        if (GB_EMULATOR->HasCgbHw()) {
+            bank0 = &GB_EMULATOR->vram()[0x0000];
+            bank1 = &GB_EMULATOR->vram()[0x2000];
         } else {
-            bank0 = &gbMemory[0x8000];
+            bank0 = &GB_EMULATOR->memory()[0x8000];
             bank1 = NULL;
         }
 
@@ -640,7 +640,7 @@ public:
                         uint8_t c = (tile_a & mask) ? 1 : 0;
                         c += (tile_b & mask) ? 2 : 0;
 
-                        if (gbCgbMode)
+                        if (GB_EMULATOR->HasCgbHw())
                             c = c + (attrs & 7) * 4;
 
                         uint16_t color = gbPalette[c];
@@ -689,9 +689,9 @@ public:
             uint8_t attrs = 0;
             uint8_t tilev = gbMemoryMap[9][address & 0xfff];
 
-            if (gbCgbMode) {
-                attrs = gbVram[0x2000 + address - 0x8000];
-                tilev = gbVram[address & 0x1fff];
+            if (GB_EMULATOR->HasCgbHw()) {
+                attrs = GB_EMULATOR->vram()[0x2000 + address - 0x8000];
+                tilev = GB_EMULATOR->vram()[address & 0x1fff];
             }
 
             if (charbase) {
@@ -707,7 +707,7 @@ public:
             s += attrs & 0x40 ? wxT('V') : wxT('-');
             flip->SetLabel(s);
 
-            if (gbCgbMode) {
+            if (GB_EMULATOR->HasCgbHw()) {
                 s.Printf(wxT("%d"), attrs & 7);
                 palette->SetLabel(s);
             } else
@@ -1017,30 +1017,30 @@ public:
         // following is almost verbatim from GBOamView.cpp
         uint16_t addr = sprite * 4 + 0xfe00;
         int size = register_LCDC & 4;
-        uint8_t y = gbMemory[addr++];
-        uint8_t x = gbMemory[addr++];
-        uint8_t tile = gbMemory[addr++];
+        uint8_t y = GB_EMULATOR->memory()[addr++];
+        uint8_t x = GB_EMULATOR->memory()[addr++];
+        uint8_t tile = GB_EMULATOR->memory()[addr++];
 
         if (size)
             tile &= 254;
 
-        uint8_t flags = gbMemory[addr++];
+        uint8_t flags = GB_EMULATOR->memory()[addr++];
         int w = 8;
         int h = size ? 16 : 8;
         BMPSize(w, h);
         uint8_t* bank0;
         uint8_t* bank1;
 
-        if (gbCgbMode) {
+        if (GB_EMULATOR->HasCgbHw()) {
             if (register_VBK & 1) {
-                bank0 = &gbVram[0x0000];
-                bank1 = &gbVram[0x2000];
+                bank0 = &GB_EMULATOR->vram()[0x0000];
+                bank1 = &GB_EMULATOR->vram()[0x2000];
             } else {
-                bank0 = &gbVram[0x0000];
-                bank1 = &gbVram[0x2000];
+                bank0 = &GB_EMULATOR->vram()[0x0000];
+                bank1 = &GB_EMULATOR->vram()[0x2000];
             }
         } else {
-            bank0 = &gbMemory[0x8000];
+            bank0 = &GB_EMULATOR->memory()[0x8000];
             bank1 = NULL;
         }
 
@@ -1055,7 +1055,7 @@ public:
             int a = 0;
             int b = 0;
 
-            if (gbCgbMode && flags & 0x08) {
+            if (GB_EMULATOR->HasCgbHw() && flags & 0x08) {
                 a = bank1[address++];
                 b = bank1[address++];
             } else {
@@ -1074,7 +1074,7 @@ public:
                     c += 2;
 
                 // make sure that sprites will work even in CGB mode
-                if (gbCgbMode) {
+                if (GB_EMULATOR->HasCgbHw()) {
                     c = c + (flags & 0x07) * 4 + 32;
                 } else {
                     c = pal[c];
@@ -1656,7 +1656,7 @@ public:
     void Update()
     {
         // following copied almost verbatim from GBTileView.cpp
-        uint8_t* charBase = (gbVram != NULL) ? &gbVram[bank + charbase] : &gbMemory[0x8000 + charbase];
+        uint8_t* charBase = (GB_EMULATOR->vram() != NULL) ? &GB_EMULATOR->vram()[bank + charbase] : &GB_EMULATOR->memory()[0x8000 + charbase];
         int tile = 0;
 
         for (int y = 0; y < 16; y++) {
@@ -1710,7 +1710,7 @@ public:
                 uint8_t c = (tile_a & mask) ? 1 : 0;
                 c += ((tile_b & mask) ? 2 : 0);
 
-                if (gbCgbMode) {
+                if (GB_EMULATOR->HasCgbHw()) {
                     c = c + palette * 4;
                 } else {
                     c = gbBgp[c];

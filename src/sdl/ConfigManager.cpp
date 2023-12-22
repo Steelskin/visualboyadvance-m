@@ -71,6 +71,7 @@ enum named_opts
 	OPT_DOTCODE_FILE_NAME_SAVE,
 	OPT_GB_BORDER_AUTOMATIC,
 	OPT_GB_BORDER_ON,
+	OPT_GB_BORDER_OFF,
 	OPT_GB_COLOR_OPTION,
 	OPT_GB_EMULATOR_TYPE,
 	OPT_GB_FRAME_SKIP,
@@ -116,6 +117,8 @@ int disableStatusMessages = 0;
 int filter = kStretch2x;
 int frameSkip = 1;
 int fullScreen;
+int gbBorderOn = 0;
+int gbBorderAutomatic = 0;
 int ifbType = kIFBNone;
 int openGL;
 int optFlashSize;
@@ -153,6 +156,7 @@ struct option argOptions[] = {
 	{ "bios-file-name-gbc", required_argument, 0, OPT_BIOS_FILE_NAME_GBC },
 	{ "border-automatic", no_argument, 0, OPT_GB_BORDER_AUTOMATIC },
 	{ "border-on", no_argument, 0, OPT_GB_BORDER_ON },
+	{ "border-off", no_argument, 0, OPT_GB_BORDER_OFF },
 	{ "capture-format", required_argument, 0, OPT_CAPTURE_FORMAT },
 	{ "cheat", required_argument, 0, OPT_CHEAT },
 	{ "cheats-enabled", no_argument, &coreOptions.cheatsEnabled, 1 },
@@ -173,6 +177,7 @@ struct option argOptions[] = {
 	{ "full-screen", no_argument, &fullScreen, 1 },
 	{ "gb-border-automatic", no_argument, 0, OPT_GB_BORDER_AUTOMATIC },
 	{ "gb-border-on", no_argument, 0, OPT_GB_BORDER_ON },
+	{ "gb-border-off", no_argument, 0, OPT_GB_BORDER_OFF },
 	{ "gb-color-option", no_argument, 0, OPT_GB_COLOR_OPTION },
 	{ "gb-emulator-type", required_argument, 0, OPT_GB_EMULATOR_TYPE },
 	{ "gb-frame-skip", required_argument, 0, OPT_GB_FRAME_SKIP },
@@ -262,7 +267,7 @@ void OpenPreferences(const char *name)
 void ValidateConfig()
 {
 	if (gbEmulatorType > 5)
-		gbEmulatorType = 1;
+		gbEmulatorType = 0;
 	if (gbPaletteOption > 2)
 		gbPaletteOption = 0;
 	if (frameSkip < 0 || frameSkip > 9)
@@ -284,6 +289,18 @@ void ValidateConfig()
 		rewindTimer = 0;
 	if (autoFireMaxCount < 1)
 		autoFireMaxCount = 1;
+}
+
+void UpdateSgbBorderOption() {
+	if (gbBorderOn) {
+		gbOptions.sgbBorderMode = SgbBorderMode::AlwaysOn;
+	} else {
+		if (gbBorderAutomatic) {
+			gbOptions.sgbBorderMode = SgbBorderMode::Automatic;
+		} else {
+			gbOptions.sgbBorderMode = SgbBorderMode::AlwaysOff;
+		}
+	}
 }
 
 void LoadConfig()
@@ -338,6 +355,7 @@ void LoadConfig()
 	coreOptions.speedup_throttle_frame_skip = ReadPref("speedupThrottleFrameSkip", 0);
 	coreOptions.useBios = ReadPrefHex("useBiosGBA");
 	coreOptions.winGbPrinterEnabled = ReadPref("gbPrinter", 0);
+	UpdateSgbBorderOption();
 
 	int soundQuality = (ReadPrefHex("soundQuality", 1));
 	switch (soundQuality) {
@@ -877,13 +895,24 @@ int ReadOpts(int argc, char ** argv)
 		case OPT_GB_BORDER_AUTOMATIC:
 			// --border-automatic
 			// --gb-border-automatic
+			gbBorderOn = false;
 			gbBorderAutomatic = true;
+			UpdateSgbBorderOption();
 			break;
 
 		case OPT_GB_BORDER_ON:
 			// --border-on
 			// --gb-border-on
 			gbBorderOn = true;
+			UpdateSgbBorderOption();
+			break;
+
+		case OPT_GB_BORDER_OFF:
+			// --border-off
+			// --gb-border-off
+			gbBorderOn = false;
+			gbBorderAutomatic = false;
+			UpdateSgbBorderOption();
 			break;
 
 		case OPT_GB_COLOR_OPTION:

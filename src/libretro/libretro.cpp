@@ -28,6 +28,7 @@
 
 #include "../gb/gb.h"
 #include "../gb/gbCheats.h"
+#include "../gb/gbEmulator.h"
 #include "../gb/gbGlobals.h"
 #include "../gb/gbMemory.h"
 #include "../gb/gbSGB.h"
@@ -154,7 +155,7 @@ static void set_gbPalette(void)
     if (type != IMAGE_GB)
         return;
 
-    if (gbCgbMode || gbSgbMode)
+    if (GB_EMULATOR->HasCgbHw() || GB_EMULATOR->HasSgbHw())
         return;
 
     const uint16_t *pal = defaultGBPalettes[option_gbPalette].data;
@@ -166,7 +167,7 @@ static void set_gbPalette(void)
 
 static void* gb_rtcdata_prt(void)
 {
-    switch (g_gbCartData.mapper_type()) {
+    switch (GB_CART_DATA->mapper_type()) {
     case gbCartData::MapperType::kMbc3:
         return &gbDataMBC3.mapperSeconds;
     case gbCartData::MapperType::kTama5:
@@ -194,7 +195,7 @@ static void* gb_rtcdata_prt(void)
 
 static size_t gb_rtcdata_size(void)
 {
-    switch (g_gbCartData.mapper_type()) {
+    switch (GB_CART_DATA->mapper_type()) {
     case gbCartData::MapperType::kMbc3:
         return MBC3_RTC_DATA_SIZE;
     case gbCartData::MapperType::kTama5:
@@ -227,7 +228,7 @@ static void gbInitRTC(void)
     time(&rawtime);
     lt = localtime(&rawtime);
 
-    switch (g_gbCartData.mapper_type()) {
+    switch (GB_CART_DATA->mapper_type()) {
     case gbCartData::MapperType::kMbc3:
         gbDataMBC3.mapperSeconds = lt->tm_sec;
         gbDataMBC3.mapperMinutes = lt->tm_min;
@@ -286,35 +287,6 @@ static void gbInitRTC(void)
     }
 }
 
-static void SetGBBorder(unsigned val)
-{
-    struct retro_system_av_info avinfo;
-    unsigned _changed = 0;
-
-    switch (val) {
-        case 0:
-            _changed = ((systemWidth != gbWidth) || (systemHeight != gbHeight)) ? 1 : 0;
-            systemWidth = gbBorderLineSkip = gbWidth;
-            systemHeight = gbHeight;
-            gbBorderColumnSkip = gbBorderRowSkip = 0;
-            break;
-        case 1:
-            _changed = ((systemWidth != sgbWidth) || (systemHeight != sgbHeight)) ? 1 : 0;
-            systemWidth = gbBorderLineSkip = sgbWidth;
-            systemHeight = sgbHeight;
-            gbBorderColumnSkip = (sgbWidth - gbWidth) >> 1;
-            gbBorderRowSkip = (sgbHeight - gbHeight) >> 1;
-            break;
-    }
-
-    retro_get_system_av_info(&avinfo);
-
-    if (!_changed)
-        environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &avinfo);
-    else
-        environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &avinfo);
-}
-
 void* retro_get_memory_data(unsigned id)
 {
     void *data = NULL;
@@ -340,17 +312,17 @@ void* retro_get_memory_data(unsigned id)
     case IMAGE_GB:
         switch (id) {
         case RETRO_MEMORY_SAVE_RAM:
-            if (g_gbCartData.has_battery())
-                data = gbRam;
+            if (GB_CART_DATA->has_battery())
+                data = GB_EMULATOR->ram();
             break;
         case RETRO_MEMORY_SYSTEM_RAM:
-            data = (gbCgbMode ? gbWram : (gbMemory + 0xC000));
+            data = (GB_EMULATOR->HasCgbHw() ? GB_EMULATOR->wram() : (GB_EMULATOR->memory() + 0xC000));
             break;
         case RETRO_MEMORY_VIDEO_RAM:
-            data = (gbCgbMode ? gbVram : (gbMemory + 0x8000));
+            data = (GB_EMULATOR->HasCgbHw() ? GB_EMULATOR->vram() : (GB_EMULATOR->memory() + 0x8000));
             break;
         case RETRO_MEMORY_RTC:
-            if (g_gbCartData.has_rtc())
+            if (GB_CART_DATA->has_rtc())
                 data = gb_rtcdata_prt();
             break;
         }
@@ -388,17 +360,17 @@ size_t retro_get_memory_size(unsigned id)
     case IMAGE_GB:
         switch (id) {
         case RETRO_MEMORY_SAVE_RAM:
-            if (g_gbCartData.has_battery())
-                size = g_gbCartData.ram_size();
+            if (GB_CART_DATA->has_battery())
+                size = GB_CART_DATA->ram_size();
             break;
         case RETRO_MEMORY_SYSTEM_RAM:
-            size = gbCgbMode ? 0x8000 : 0x2000;
+            size = GB_EMULATOR->HasCgbHw() ? 0x8000 : 0x2000;
             break;
         case RETRO_MEMORY_VIDEO_RAM:
-            size = gbCgbMode ? 0x4000 : 0x2000;
+            size = GB_EMULATOR->HasCgbHw() ? 0x4000 : 0x2000;
             break;
         case RETRO_MEMORY_RTC:
-            if (g_gbCartData.has_rtc())
+            if (GB_CART_DATA->has_rtc())
                 size = gb_rtcdata_size();
             break;
         }
@@ -575,14 +547,25 @@ void retro_get_system_info(struct retro_system_info *info)
 
 void retro_get_system_av_info(struct retro_system_av_info *info)
 {
-   double aspect = (3.0f / 2.0f);
-   unsigned maxWidth  = gbaWidth;
-   unsigned maxHeight = gbaHeight;
+   double aspect;
+   unsigned maxWidth;
+   unsigned maxHeight;
 
    if (type == IMAGE_GB) {
-      aspect = !gbBorderOn ? (10.0 / 9.0) : (8.0 / 7.0);
-      maxWidth = !gbBorderOn ? gbWidth : sgbWidth;
-      maxHeight = !gbBorderOn ? gbHeight : sgbHeight;
+      if (gbEmulatorClient->gbEmulator()->sgb_border_on()) {
+         aspect = 8.0 / 7.0;
+         maxWidth = kSGBWidth
+         maxHeight = kSGBHeight;
+      } else {
+         aspect = 10.0 / 9.0;
+         maxWidth = kGBWidth;
+         maxHeight = kGBHeight;
+      }
+   } else {
+      // GBA
+      aspect = (3.0f / 2.0f);
+      maxWidth  = gbaWidth;
+      maxHeight = gbaHeight;
    }
 
    info->geometry.base_width = systemWidth;
@@ -594,8 +577,48 @@ void retro_get_system_av_info(struct retro_system_av_info *info)
    info->timing.sample_rate = SAMPLERATE;
 }
 
+class gbEmulatorClient : public core::gbEmulator::Client {
+public:
+    gbEmulatorClient() : gb_emulator_(this) {}
+    ~gbEmulatorClient() override = default;
+
+    core::gbEmulator* gb_emulator() { return &gb_emulator_; }
+
+private:
+    // core::gbEmulator::Client implementation.
+    void OnSgbBorderModeChanged(bool sgb_border_on) override {
+        struct retro_system_av_info avinfo;
+        bool border_changed = false;
+
+        if (sgb_border_on) {
+            border_changed = ((systemWidth != sgbWidth) || (systemHeight != sgbHeight)) ? 1 : 0;
+            systemWidth = gbBorderLineSkip = sgbWidth;
+            systemHeight = sgbHeight;
+            gbBorderColumnSkip = (sgbWidth - gbWidth) >> 1;
+            gbBorderRowSkip = (sgbHeight - gbHeight) >> 1;
+        } else {
+            border_changed = ((systemWidth != gbWidth) || (systemHeight != gbHeight)) ? 1 : 0;
+            systemWidth = gbBorderLineSkip = gbWidth;
+            systemHeight = gbHeight;
+            gbBorderColumnSkip = gbBorderRowSkip = 0;
+        }
+
+        retro_get_system_av_info(&avinfo);
+
+        if (!border_changed)
+            environ_cb(RETRO_ENVIRONMENT_SET_GEOMETRY, &avinfo);
+        else
+            environ_cb(RETRO_ENVIRONMENT_SET_SYSTEM_AV_INFO, &avinfo);
+    }
+
+    core::gbEmulator gb_emulator_;
+} gbEmulatorClient;
+
 void retro_init(void)
 {
+    // Set up the global GB emulator.
+    core::gbEmulator::Set(gbEmulatorClient.gb_emulator());
+
     // The libretro core uses a few different defaults.
     coreOptions.mirroringEnable = false;
     coreOptions.parseDebug = true;
@@ -653,7 +676,7 @@ static const char *gbGetCartridgeType(void)
 {
     const char *type = "Unknown";
 
-    switch (g_gbCartData.mapper_flag()) {
+    switch (GB_CART_DATA->mapper_flag()) {
     case 0x00:
         type = "ROM";
         break;
@@ -744,7 +767,7 @@ static const char *gbGetSaveRamSize(void)
 {
     const char *type = "Unknown";
 
-    switch (g_gbCartData.ram_size()) {
+    switch (GB_CART_DATA->ram_size()) {
     case 0:
         type = "None";
         break;
@@ -933,22 +956,18 @@ static void gb_init(void)
 
     if (option_useBios) {
         snprintf(biosfile, sizeof(biosfile), "%s%c%s",
-            retro_system_directory, SLASH, biosname[gbCgbMode ? 1 : 0]);
+            retro_system_directory, SLASH, biosname[GB_EMULATOR->HasCgbHw() ? 1 : 0]);
         log("Loading bios: %s\n", biosfile);
     }
 
     gbCPUInit(biosfile, option_useBios);
 
-    if (gbBorderOn) {
-        systemWidth = gbBorderLineSkip = sgbWidth;
-        systemHeight = sgbHeight;
-        gbBorderColumnSkip = (sgbWidth - gbWidth) >> 1;
-        gbBorderRowSkip = (sgbHeight - gbHeight) >> 1;
-    } else {
-        systemWidth = gbBorderLineSkip = gbWidth;
-        systemHeight = gbHeight;
-        gbBorderColumnSkip = gbBorderRowSkip = 0;
-    }
+    // Assume no border, this will be updated later on if needs be.
+    systemWidth = kGBWidth;
+    systemHeight = kGBHeight;
+    gbBorderLineSkip = kGBWidth;
+    gbBorderColumnSkip = 0;
+    gbBorderRowSkip = 0;
 
     gbSoundSetSampleRate(SAMPLERATE);
     gbSoundSetDeclicking(1);
@@ -956,19 +975,19 @@ static void gb_init(void)
     gbReset(); // also resets sound;
     set_gbPalette();
 
-    log("Rom size       : %02x (%dK)\n", g_gbCartData.rom_flag(), (romSize + 1023) / 1024);
-    log("Cartridge type : %02x (%s)\n", g_gbCartData.mapper_flag(), gbGetCartridgeType());
-    log("Ram size       : %02x (%s)\n", g_gbCartData.ram_flag(), gbGetSaveRamSize());
-    log("CRC            : %02x (%02x)\n", g_gbCartData.header_checksum(), g_gbCartData.actual_header_checksum());
-    log("Checksum       : %04x (%04x)\n", g_gbCartData.global_checksum(), g_gbCartData.actual_global_checksum());
+    log("Rom size       : %02x (%dK)\n", GB_CART_DATA->rom_flag(), (romSize + 1023) / 1024);
+    log("Cartridge type : %02x (%s)\n", GB_CART_DATA->mapper_flag(), gbGetCartridgeType());
+    log("Ram size       : %02x (%s)\n", GB_CART_DATA->ram_flag(), gbGetSaveRamSize());
+    log("CRC            : %02x (%02x)\n", GB_CART_DATA->header_checksum(), GB_CART_DATA->actual_header_checksum());
+    log("Checksum       : %04x (%04x)\n", GB_CART_DATA->global_checksum(), GB_CART_DATA->actual_global_checksum());
 
-    if (g_gbCartData.has_battery())
+    if (GB_CART_DATA->has_battery())
         log("Game supports battery save ram.\n");
-    if (g_gbCartData.RequiresCGB())
+    if (GB_CART_DATA->RequiresCGB())
         log("Game works on CGB only\n");
-    else if (g_gbCartData.SupportsCGB())
+    else if (GB_CART_DATA->SupportsCGB())
         log("Game supports GBC functions, GB compatible.\n");
-    if (g_gbCartData.sgb_support())
+    if (GB_CART_DATA->sgb_support())
         log("Game supports SGB functions\n");
 }
 
@@ -1105,18 +1124,12 @@ static void update_variables(bool startup)
 
     if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE, &var) && var.value) {
         if (strcmp(var.value, "auto") == 0) {
-            gbBorderAutomatic = true;
-        }
-        else if (!strcmp(var.value, "enabled")) {
-            gbBorderAutomatic = false;
-            gbBorderOn = false;
+            gbOptions.sgbBorderMode = SgbBorderMode::Automatic;
+        } else if (!strcmp(var.value, "enabled")) {
+            gbOptions.sgbBorderMode = SgbBorderMode::AlwaysOn;
         } else { // disabled
-            gbBorderOn = true;
-            gbBorderAutomatic = false;
+            gbOptions.sgbBorderMode = SgbBorderMode::AlwaysOff;
         }
-
-        if ((type == IMAGE_GB) && !startup)
-            SetGBBorder(gbBorderOn);
     }
 
     var.key = "vbam_gbHardware";
@@ -1437,8 +1450,8 @@ void retro_run(void)
         firstrun = false;
         /* Check if GB game has RTC data. Has to be check here since this is where the data will be
          * available when using libretro api. */
-        if ((type == IMAGE_GB) && g_gbCartData.has_rtc()) {
-            switch (g_gbCartData.mapper_type()) {
+        if ((type == IMAGE_GB) && GB_CART_DATA->has_rtc()) {
+            switch (GB_CART_DATA->mapper_type()) {
             case gbCartData::MapperType::kMbc3:
                 /* Check if any RTC has been loaded, zero value means nothing has been loaded. */
                 if (!gbDataMBC3.mapperLastTime)
@@ -1595,7 +1608,7 @@ void retro_cheat_set(unsigned index, bool enabled, const char* code)
 static void update_input_descriptors(void)
 {
     if (type == IMAGE_GB) {
-        if (gbSgbMode) {
+        if (GB_EMULATOR->HasSgbHw()) {
             environ_cb(RETRO_ENVIRONMENT_SET_CONTROLLER_INFO, (void*)ports_sgb);
             environ_cb(RETRO_ENVIRONMENT_SET_INPUT_DESCRIPTORS, input_sgb);
         } else {
@@ -1696,12 +1709,12 @@ bool retro_load_game(const struct retro_game_info *game)
          if (addr == 13) continue;
          if (addr == 14) continue;
          if (addr == 12) {                               // WRAM, bank 0-1
-            if (!gbCgbMode) {                            // WRAM-GB
-               if (!gbMemory) continue;
-               desc[i].ptr      = gbMemory + 0xC000;
+            if (!GB_EMULATOR->HasCgbHw()) {                            // WRAM-GB
+               if (!GB_EMULATOR->memory()) continue;
+               desc[i].ptr      = GB_EMULATOR->memory() + 0xC000;
             } else {                                     // WRAM GBC
-               if (!gbWram) continue;
-               desc[i].ptr      = gbWram;
+               if (!GB_EMULATOR->wram()) continue;
+               desc[i].ptr      = GB_EMULATOR->wram();
             }
             desc[i].start       = addr * 0x1000;
             desc[i].len         = 0x2000;
@@ -1719,8 +1732,8 @@ bool retro_load_game(const struct retro_game_info *game)
          }
       }
 
-      if (gbWram && gbCgbMode) { // banks 2-7 of GBC work ram banks at $10000
-         desc[i].ptr    = gbWram;
+      if (GB_EMULATOR->wram() && GB_EMULATOR->HasCgbHw()) { // banks 2-7 of GBC work ram banks at $10000
+         desc[i].ptr    = GB_EMULATOR->wram();
          desc[i].offset = 0x2000;
          desc[i].start  = 0x10000;
          desc[i].select = 0xFFFFA000;
@@ -1791,11 +1804,6 @@ void systemSendScreen(void)
 void systemFrame(void)
 {
     has_frame = 1;
-}
-
-void systemGbBorderOn(void)
-{
-    SetGBBorder(1);
 }
 
 void systemMessage(const char* fmt, ...)

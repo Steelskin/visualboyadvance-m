@@ -1,6 +1,7 @@
 #include <memory.h>
 
-#include "../Util.h"
+#include "../System.h"
+#include "gbEmulator.h"
 #include "gbGlobals.h"
 #include "gbSGB.h"
 
@@ -48,11 +49,11 @@ void gbRenderLine()
     memset(gbLineMix, 0, sizeof(gbLineMix));
     uint8_t* bank0;
     uint8_t* bank1;
-    if (gbCgbMode) {
-        bank0 = &gbVram[0x0000];
-        bank1 = &gbVram[0x2000];
+    if (GB_EMULATOR->HasCgbHw()) {
+        bank0 = &GB_EMULATOR->vram()[0x0000];
+        bank1 = &GB_EMULATOR->vram()[0x2000];
     } else {
-        bank0 = &gbMemory[0x8000];
+        bank0 = &GB_EMULATOR->memory()[0x8000];
         bank1 = NULL;
     }
 
@@ -103,7 +104,7 @@ void gbRenderLine()
     int tile_pattern_address = tile_pattern + tile * 16 + by * 2;
 
     if (register_LCDC & 0x80) {
-        if ((register_LCDC & 0x01 || gbCgbMode) && (coreOptions.layerSettings & 0x0100)) {
+        if ((register_LCDC & 0x01 || GB_EMULATOR->HasCgbHw()) && (coreOptions.layerSettings & 0x0100)) {
             while (x < 160) {
 
                 uint8_t tile_a = 0;
@@ -130,21 +131,21 @@ void gbRenderLine()
                     uint8_t c = (tile_a & bx) ? 1 : 0;
                     c += ((tile_b & bx) ? 2 : 0);
 
-                    gbLineBuffer[x] = c; // mark the gbLineBuffer color
+                    GB_EMULATOR->line_buffer()[x] = c; // mark the GB_EMULATOR->line_buffer() color
 
                     if (attrs & 0x80)
-                        gbLineBuffer[x] |= 0x300;
+                        GB_EMULATOR->line_buffer()[x] |= 0x300;
 
-                    if (gbCgbMode) {
+                    if (GB_EMULATOR->HasCgbHw()) {
                         // Use the DMG palette if we are in compat mode.
-                        if (gbMemory[0xff6c] & 1) {
+                        if (GB_EMULATOR->memory()[0xff6c] & 1) {
                             c = gbBgp[c];
                         } else {
                             c = c + (attrs & 7) * 4;
                         }
                     } else {
                         c = (gbBgpLine[x + (gbSpeed ? 5 : 11) + SpritesTicks] >> (c << 1)) & 3;
-                        if (gbSgbMode && !gbCgbMode) {
+                        if (GB_EMULATOR->HasSgbHw() && !GB_EMULATOR->HasCgbHw()) {
                             int dx = x >> 3;
                             int dy = y >> 3;
 
@@ -203,18 +204,18 @@ void gbRenderLine()
             // Also added the gbColorOption (fixes Dracula Densetsu II color problems)
             for (int i = 0; i < 160; i++) {
                 uint16_t color = gbColorOption ? gbColorFilter[0x7FFF] : 0x7FFF;
-                if (!gbCgbMode)
+                if (!GB_EMULATOR->HasCgbHw())
                     color = gbColorOption ? gbColorFilter[gbPalette[gbBgpLine[i + (gbSpeed ? 5 : 11) + gbSpritesTicks[i] * (gbSpeed ? 2 : 4)] & 3] & 0x7FFF] : gbPalette[gbBgpLine[i + (gbSpeed ? 5 : 11) + gbSpritesTicks[i] * (gbSpeed ? 2 : 4)] & 3] & 0x7FFF;
                 gbLineMix[i] = color;
-                gbLineBuffer[i] = 0;
+                GB_EMULATOR->line_buffer()[i] = 0;
             }
         }
 
         // do the window display
-        // LCDC.0 also enables/disables the window in !gbCgbMode ?!?!
+        // LCDC.0 also enables/disables the window in !GB_EMULATOR->HasCgbHw() ?!?!
         // (tested on real hardware)
         // This fixes Last Bible II & Zankurou Musouken
-        if ((register_LCDC & 0x01 || gbCgbMode) && (register_LCDC & 0x20) && (coreOptions.layerSettings & 0x2000) && (gbWindowLine != -2)) {
+        if ((register_LCDC & 0x01 || GB_EMULATOR->HasCgbHw()) && (register_LCDC & 0x20) && (coreOptions.layerSettings & 0x2000) && (gbWindowLine != -2)) {
             int i = 0;
             // Fix (accurate emulation) for most of the window display problems
             // (ie. Zen - Intergalactic Ninja, Urusei Yatsura...).
@@ -322,20 +323,20 @@ void gbRenderLine()
 
                             if (x >= 0) {
                                 if (attrs & 0x80)
-                                    gbLineBuffer[x] = 0x300 + c;
+                                    GB_EMULATOR->line_buffer()[x] = 0x300 + c;
                                 else
-                                    gbLineBuffer[x] = 0x100 + c;
+                                    GB_EMULATOR->line_buffer()[x] = 0x100 + c;
 
-                                if (gbCgbMode) {
+                                if (GB_EMULATOR->HasCgbHw()) {
                                     // Use the DMG palette if we are in compat mode.
-                                    if (gbMemory[0xff6c] & 1) {
+                                    if (GB_EMULATOR->memory()[0xff6c] & 1) {
                                         c = gbBgp[c];
                                     } else {
                                         c = c + (attrs & 7) * 4;
                                     }
                                 } else {
                                     c = (gbBgpLine[x + (gbSpeed ? 5 : 11) + gbSpritesTicks[x] * (gbSpeed ? 2 : 4)] >> (c << 1)) & 3;
-                                    if (gbSgbMode && !gbCgbMode) {
+                                    if (GB_EMULATOR->HasSgbHw() && !GB_EMULATOR->HasCgbHw()) {
                                         int dx = x >> 3;
                                         int dy = y >> 3;
 
@@ -385,11 +386,11 @@ void gbRenderLine()
         }
     } else {
         uint16_t color = gbColorOption ? gbColorFilter[0x7FFF] : 0x7FFF;
-        if (!gbCgbMode)
+        if (!GB_EMULATOR->HasCgbHw())
             color = gbColorOption ? gbColorFilter[gbPalette[0] & 0x7FFF] : gbPalette[0] & 0x7FFF;
         for (int i = 0; i < 160; i++) {
             gbLineMix[i] = color;
-            gbLineBuffer[i] = 0;
+            GB_EMULATOR->line_buffer()[i] = 0;
         }
     }
 }
@@ -399,11 +400,11 @@ void gbDrawSpriteTile(int tile, int x, int y, int t, int flags,
 {
     uint8_t* bank0;
     uint8_t* bank1;
-    if (gbCgbMode) {
-        bank0 = &gbVram[0x0000];
-        bank1 = &gbVram[0x2000];
+    if (GB_EMULATOR->HasCgbHw()) {
+        bank0 = &GB_EMULATOR->vram()[0x0000];
+        bank1 = &GB_EMULATOR->vram()[0x2000];
     } else {
-        bank0 = &gbMemory[0x8000];
+        bank0 = &GB_EMULATOR->memory()[0x8000];
         bank1 = NULL;
     }
 
@@ -432,7 +433,7 @@ void gbDrawSpriteTile(int tile, int x, int y, int t, int flags,
     int a = 0;
     int b = 0;
 
-    if (gbCgbMode && (flags & 0x08)) {
+    if (GB_EMULATOR->HasCgbHw() && (flags & 0x08)) {
         a = bank1[address++];
         b = bank1[address++];
     } else {
@@ -458,7 +459,7 @@ void gbDrawSpriteTile(int tile, int x, int y, int t, int flags,
         if (xxx < 0 || xxx > 159)
             continue;
 
-        uint16_t color = gbLineBuffer[xxx];
+        uint16_t color = GB_EMULATOR->line_buffer()[xxx];
 
         // Fixes OAM-BG priority
         if (prio && (register_LCDC & 1)) {
@@ -471,13 +472,13 @@ void gbDrawSpriteTile(int tile, int x, int y, int t, int flags,
         else if (color >= 0x200 && color < 0x300) {
             int sprite = color & 0xff;
 
-            int spriteX = gbMemory[0xfe00 + 4 * sprite + 1] - 8;
+            int spriteX = GB_EMULATOR->memory()[0xfe00 + 4 * sprite + 1] - 8;
 
             if (spriteX == x) {
                 if (sprite < spriteNumber)
                     continue;
             } else {
-                if (gbCgbMode) {
+                if (GB_EMULATOR->HasCgbHw()) {
                     if (sprite < spriteNumber)
                         continue;
                 } else {
@@ -489,12 +490,12 @@ void gbDrawSpriteTile(int tile, int x, int y, int t, int flags,
             }
         }
 
-        gbLineBuffer[xxx] = 0x200 + spriteNumber;
+        GB_EMULATOR->line_buffer()[xxx] = 0x200 + spriteNumber;
 
         // make sure that sprites will work even in CGB mode
-        if (gbCgbMode) {
+        if (GB_EMULATOR->HasCgbHw()) {
             // Use the DMG palette if we are in compat mode.
-            if (gbMemory[0xff6c] & 1) {
+            if (GB_EMULATOR->memory()[0xff6c] & 1) {
                 c = pal[c] + ((flags & 0x10) >> 4) * 4 + 32;
             } else {
                 c = c + (flags & 0x07) * 4 + 32;
@@ -502,7 +503,7 @@ void gbDrawSpriteTile(int tile, int x, int y, int t, int flags,
         } else {
             c = pal[c];
 
-            if (gbSgbMode && !gbCgbMode) {
+            if (GB_EMULATOR->HasSgbHw() && !GB_EMULATOR->HasCgbHw()) {
                 int dx = xxx >> 3;
                 int dy = y >> 3;
 
@@ -540,12 +541,12 @@ void gbDrawSprites(bool draw)
 
         int address = 0xfe00;
         for (int i = 0; i < 40; i++) {
-            y = gbMemory[address++];
-            x = gbMemory[address++];
-            int tile = gbMemory[address++];
+            y = GB_EMULATOR->memory()[address++];
+            x = GB_EMULATOR->memory()[address++];
+            int tile = GB_EMULATOR->memory()[address++];
             if (size)
                 tile &= 254;
-            int flags = gbMemory[address++];
+            int flags = GB_EMULATOR->memory()[address++];
 
             if (x > 0 && y > 0 && x < 168 && y < 160) {
                 // check if sprite intersects current line

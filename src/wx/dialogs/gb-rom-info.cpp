@@ -16,7 +16,7 @@ namespace {
 // cartridge.
 wxString GetCartType() {
     wxString mapper_type;
-    switch (g_gbCartData.mapper_type()) {
+    switch (GB_CART_DATA->mapper_type()) {
         case gbCartData::MapperType::kNone:
             mapper_type = _("No mapper");
             break;
@@ -64,34 +64,34 @@ wxString GetCartType() {
             break;
     }
 
-    const wxString has_ram = g_gbCartData.HasRam() ? _(" + RAM") : "";
-    const wxString has_rtc = g_gbCartData.has_rtc() ? _(" + RTC") : "";
-    const wxString has_battery = g_gbCartData.has_battery() ? _(" + Battery") : "";
-    const wxString has_rumble = g_gbCartData.has_rumble() ? _(" + Rumble") : "";
-    const wxString has_motion = g_gbCartData.has_sensor() ? _(" + Motion Sensor") : "";
+    const wxString has_ram = GB_CART_DATA->HasRam() ? _(" + RAM") : "";
+    const wxString has_rtc = GB_CART_DATA->has_rtc() ? _(" + RTC") : "";
+    const wxString has_battery = GB_CART_DATA->has_battery() ? _(" + Battery") : "";
+    const wxString has_rumble = GB_CART_DATA->has_rumble() ? _(" + Rumble") : "";
+    const wxString has_motion = GB_CART_DATA->has_sensor() ? _(" + Motion Sensor") : "";
 
-    return wxString::Format(_("%02X (%s%s%s%s%s%s)"), g_gbCartData.mapper_flag(), mapper_type,
+    return wxString::Format(_("%02X (%s%s%s%s%s%s)"), GB_CART_DATA->mapper_flag(), mapper_type,
                             has_ram, has_rtc, has_battery, has_rumble, has_motion);
 }
 
 // Returns a localized string indicating SGB support for the loaded GB/GBC cartridge.
 wxString GetCartSGBFlag() {
-    if (g_gbCartData.sgb_support()) {
-        return wxString::Format(_("%02X (Supported)"), g_gbCartData.sgb_flag());
+    if (GB_CART_DATA->sgb_support()) {
+        return wxString::Format(_("%02X (Supported)"), GB_CART_DATA->sgb_flag());
     } else {
-        return wxString::Format(_("%02X (Not supported)"), g_gbCartData.sgb_flag());
+        return wxString::Format(_("%02X (Not supported)"), GB_CART_DATA->sgb_flag());
     }
 }
 
 // Returns a localized string indicating CGB support for the loaded GB/GBC cartridge.
 wxString GetCartCGBFlag() {
-    switch (g_gbCartData.cgb_support()) {
+    switch (GB_CART_DATA->cgb_support()) {
         case gbCartData::CGBSupport::kNone:
-            return wxString::Format(_("%02X (Not supported)"), g_gbCartData.cgb_flag());
+            return wxString::Format(_("%02X (Not supported)"), GB_CART_DATA->cgb_flag());
         case gbCartData::CGBSupport::kSupported:
-            return wxString::Format(_("%02X (Supported)"), g_gbCartData.cgb_flag());
+            return wxString::Format(_("%02X (Supported)"), GB_CART_DATA->cgb_flag());
         case gbCartData::CGBSupport::kRequired:
-            return wxString::Format(_("%02X (Required)"), g_gbCartData.cgb_flag());
+            return wxString::Format(_("%02X (Required)"), GB_CART_DATA->cgb_flag());
         default:
             // Unreachable.
             assert(false);
@@ -101,61 +101,61 @@ wxString GetCartCGBFlag() {
 
 // Returns a localized string indicating the ROM size of the loaded GB/GBC cartridge.
 wxString GetCartRomSize() {
-    switch (g_gbCartData.rom_size()) {
+    switch (GB_CART_DATA->rom_size()) {
         case k32KiB:
-            return wxString::Format(_("%02X (32 KiB)"), g_gbCartData.rom_flag());
+            return wxString::Format(_("%02X (32 KiB)"), GB_CART_DATA->rom_flag());
         case k64KiB:
-            return wxString::Format(_("%02X (64 KiB)"), g_gbCartData.rom_flag());
+            return wxString::Format(_("%02X (64 KiB)"), GB_CART_DATA->rom_flag());
         case k128KiB:
-            return wxString::Format(_("%02X (128 KiB)"), g_gbCartData.rom_flag());
+            return wxString::Format(_("%02X (128 KiB)"), GB_CART_DATA->rom_flag());
         case k256KiB:
-            return wxString::Format(_("%02X (256 KiB)"), g_gbCartData.rom_flag());
+            return wxString::Format(_("%02X (256 KiB)"), GB_CART_DATA->rom_flag());
         case k512KiB:
-            return wxString::Format(_("%02X (512 KiB)"), g_gbCartData.rom_flag());
+            return wxString::Format(_("%02X (512 KiB)"), GB_CART_DATA->rom_flag());
         case k1MiB:
-            return wxString::Format(_("%02X (1 MiB)"), g_gbCartData.rom_flag());
+            return wxString::Format(_("%02X (1 MiB)"), GB_CART_DATA->rom_flag());
         case k2MiB:
-            return wxString::Format(_("%02X (2 MiB)"), g_gbCartData.rom_flag());
+            return wxString::Format(_("%02X (2 MiB)"), GB_CART_DATA->rom_flag());
         case k4MiB:
-            return wxString::Format(_("%02X (4 MiB)"), g_gbCartData.rom_flag());
+            return wxString::Format(_("%02X (4 MiB)"), GB_CART_DATA->rom_flag());
         default:
-            return wxString::Format(_("%02X (Unknown)"), g_gbCartData.rom_flag());
+            return wxString::Format(_("%02X (Unknown)"), GB_CART_DATA->rom_flag());
     }
 }
 
 // Returns a localized string indicating the ROM size of the loaded GB/GBC cartridge.
 wxString GetCartRamSize() {
-    switch (g_gbCartData.ram_size()) {
+    switch (GB_CART_DATA->ram_size()) {
         case 0:
-            return wxString::Format(_("%02X (None)"), g_gbCartData.ram_flag());
+            return wxString::Format(_("%02X (None)"), GB_CART_DATA->ram_flag());
         case k256B:
-            return wxString::Format(_("%02X (256 B)"), g_gbCartData.ram_flag());
+            return wxString::Format(_("%02X (256 B)"), GB_CART_DATA->ram_flag());
         case k512B:
-            return wxString::Format(_("%02X (512 B)"), g_gbCartData.ram_flag());
+            return wxString::Format(_("%02X (512 B)"), GB_CART_DATA->ram_flag());
         case k2KiB:
-            return wxString::Format(_("%02X (2 KiB)"), g_gbCartData.ram_flag());
+            return wxString::Format(_("%02X (2 KiB)"), GB_CART_DATA->ram_flag());
         case k8KiB:
-            return wxString::Format(_("%02X (8 KiB)"), g_gbCartData.ram_flag());
+            return wxString::Format(_("%02X (8 KiB)"), GB_CART_DATA->ram_flag());
         case k32KiB:
-            return wxString::Format(_("%02X (32 KiB)"), g_gbCartData.ram_flag());
+            return wxString::Format(_("%02X (32 KiB)"), GB_CART_DATA->ram_flag());
         case k128KiB:
-            return wxString::Format(_("%02X (128 KiB)"), g_gbCartData.ram_flag());
+            return wxString::Format(_("%02X (128 KiB)"), GB_CART_DATA->ram_flag());
         case k64KiB:
-            return wxString::Format(_("%02X (64 KiB)"), g_gbCartData.ram_flag());
+            return wxString::Format(_("%02X (64 KiB)"), GB_CART_DATA->ram_flag());
         default:
-            return wxString::Format(_("%02X (Unknown)"), g_gbCartData.ram_flag());
+            return wxString::Format(_("%02X (Unknown)"), GB_CART_DATA->ram_flag());
     }
 }
 
 // Returns a localized string indicating the destination code of the loaded GB/GBC cartridge.
 wxString GetCartDestinationCode() {
-    switch (g_gbCartData.destination_code()) {
+    switch (GB_CART_DATA->destination_code()) {
         case gbCartData::DestinationCode::kJapanese:
-            return wxString::Format(_("%02X (Japan)"), g_gbCartData.destination_code_flag());
+            return wxString::Format(_("%02X (Japan)"), GB_CART_DATA->destination_code_flag());
         case gbCartData::DestinationCode::kWorldwide:
-            return wxString::Format(_("%02X (World)"), g_gbCartData.destination_code_flag());
+            return wxString::Format(_("%02X (World)"), GB_CART_DATA->destination_code_flag());
         case gbCartData::DestinationCode::kUnknown:
-            return wxString::Format(_("%02X (Unknown)"), g_gbCartData.destination_code_flag());
+            return wxString::Format(_("%02X (Unknown)"), GB_CART_DATA->destination_code_flag());
         default:
             // Unreachable.
             assert(false);
@@ -191,9 +191,9 @@ void GbRomInfo::OnDialogShowEvent(wxShowEvent& event) {
     }
 
     // Populate the dialog.
-    GetValidatedChild(this, "Title")->SetLabel(g_gbCartData.title());
-    GetValidatedChild(this, "MakerCode")->SetLabel(g_gbCartData.maker_code());
-    GetValidatedChild(this, "MakerName")->SetLabel(GetGameMakerName(g_gbCartData.maker_code()));
+    GetValidatedChild(this, "Title")->SetLabel(GB_CART_DATA->title());
+    GetValidatedChild(this, "MakerCode")->SetLabel(GB_CART_DATA->maker_code());
+    GetValidatedChild(this, "MakerName")->SetLabel(GetGameMakerName(GB_CART_DATA->maker_code()));
     GetValidatedChild(this, "CartridgeType")->SetLabel(GetCartType());
     GetValidatedChild(this, "SGBCode")->SetLabel(GetCartSGBFlag());
     GetValidatedChild(this, "CGBCode")->SetLabel(GetCartCGBFlag());
@@ -201,15 +201,15 @@ void GbRomInfo::OnDialogShowEvent(wxShowEvent& event) {
     GetValidatedChild(this, "RAMSize")->SetLabel(GetCartRamSize());
     GetValidatedChild(this, "DestCode")->SetLabel(GetCartDestinationCode());
     GetValidatedChild(this, "LicCode")
-        ->SetLabel(wxString::Format("%02X", g_gbCartData.old_licensee_code()));
+        ->SetLabel(wxString::Format("%02X", GB_CART_DATA->old_licensee_code()));
     GetValidatedChild(this, "Version")
-        ->SetLabel(wxString::Format("%02X", g_gbCartData.version_flag()));
+        ->SetLabel(wxString::Format("%02X", GB_CART_DATA->version_flag()));
     GetValidatedChild(this, "HeaderChecksum")
-        ->SetLabel(wxString::Format(_("%02X (Actual: %02X)"), g_gbCartData.header_checksum(),
-                                    g_gbCartData.actual_header_checksum()));
+        ->SetLabel(wxString::Format(_("%02X (Actual: %02X)"), GB_CART_DATA->header_checksum(),
+                                    GB_CART_DATA->actual_header_checksum()));
     GetValidatedChild(this, "CartridgeChecksum")
-        ->SetLabel(wxString::Format(_("%04X (Actual: %04X)"), g_gbCartData.global_checksum(),
-                                    g_gbCartData.actual_global_checksum()));
+        ->SetLabel(wxString::Format(_("%04X (Actual: %04X)"), GB_CART_DATA->global_checksum(),
+                                    GB_CART_DATA->actual_global_checksum()));
 
     // Re-fit everything.
     Fit();

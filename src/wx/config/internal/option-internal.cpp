@@ -185,6 +185,8 @@ std::array<Option, kNbOptions>& Option::All() {
         bool agb_print = false;
         bool auto_frame_skip = false;
         bool auto_patch = true;
+        bool border_automatic = false;
+        bool border_on = false;
         bool autoload_cheats = false;
         uint32_t capture_format = 0;
         bool disable_status_messages = false;
@@ -302,8 +304,8 @@ std::array<Option, kNbOptions>& Option::All() {
         Option(OptionID::kPrefAutoFrameSkip, &g_owned_opts.auto_frame_skip),
         Option(OptionID::kPrefAutoPatch, &g_owned_opts.auto_patch),
         Option(OptionID::kPrefAutoSaveLoadCheatList, &g_owned_opts.autoload_cheats),
-        Option(OptionID::kPrefBorderAutomatic, &gbBorderAutomatic),
-        Option(OptionID::kPrefBorderOn, &gbBorderOn),
+        Option(OptionID::kPrefBorderAutomatic, &g_owned_opts.border_automatic),
+        Option(OptionID::kPrefBorderOn, &g_owned_opts.border_on),
         Option(OptionID::kPrefCaptureFormat, &g_owned_opts.capture_format, 0, 1),
         Option(OptionID::kPrefCheatsEnabled, &coreOptions.cheatsEnabled, 0, 1),
         Option(OptionID::kPrefDisableStatus, &g_owned_opts.disable_status_messages),

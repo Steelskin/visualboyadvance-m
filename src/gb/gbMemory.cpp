@@ -1,11 +1,12 @@
 #include "gbMemory.h"
+#include "gbEmulator.h"
 #include "../System.h"
 #include "../common/Port.h"
 #include "../common/sizes.h"
 #include "gb.h"
 #include "gbGlobals.h"
 uint8_t gbDaysinMonth[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-extern int gbGBCColorType;
+// extern int gbGBCColorType;
 extern gbRegister PC;
 
 mapperMBC1 gbDataMBC1 = {
@@ -48,28 +49,28 @@ void mapperMBC1ROM(uint16_t address, uint8_t value)
             tmpAddress |= (gbDataMBC1.mapperROMHighAddress & 3) << 19;
         }
 
-        tmpAddress &= g_gbCartData.rom_mask();
+        tmpAddress &= GB_CART_DATA->rom_mask();
         gbDataMBC1.mapperROMBank = value;
-        gbMemoryMap[0x04] = &gbRom[tmpAddress];
-        gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-        gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-        gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+        gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+        gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+        gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+        gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
         break;
     case 0x4000: // RAM bank select
         if (gbDataMBC1.mapperMemoryModel == 1) {
-            if (!g_gbCartData.HasRam()) {
+            if (!GB_CART_DATA->HasRam()) {
                 if (gbDataMBC1.mapperRomBank0Remapping == 3) {
                     gbDataMBC1.mapperROMHighAddress = value & 0x03;
                     tmpAddress = (gbDataMBC1.mapperROMHighAddress) << 18;
-                    tmpAddress &= g_gbCartData.rom_mask();
-                    gbMemoryMap[0x00] = &gbRom[tmpAddress];
-                    gbMemoryMap[0x01] = &gbRom[tmpAddress + 0x1000];
-                    gbMemoryMap[0x02] = &gbRom[tmpAddress + 0x2000];
-                    gbMemoryMap[0x03] = &gbRom[tmpAddress + 0x3000];
-                    gbMemoryMap[0x04] = &gbRom[tmpAddress + 0x4000];
-                    gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x5000];
-                    gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x6000];
-                    gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x7000];
+                    tmpAddress &= GB_CART_DATA->rom_mask();
+                    gbMemoryMap[0x00] = &GB_EMULATOR->rom()[tmpAddress];
+                    gbMemoryMap[0x01] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+                    gbMemoryMap[0x02] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+                    gbMemoryMap[0x03] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
+                    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress + 0x4000];
+                    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x5000];
+                    gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x6000];
+                    gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x7000];
                 } else
                     gbDataMBC1.mapperRomBank0Remapping = 0;
             }
@@ -78,10 +79,10 @@ void mapperMBC1ROM(uint16_t address, uint8_t value)
             if (value == gbDataMBC1.mapperRAMBank)
                 break;
             tmpAddress = value << 13;
-            tmpAddress &= g_gbCartData.ram_mask();
-            if (g_gbCartData.HasRam()) {
-                gbMemoryMap[0x0a] = &gbRam[tmpAddress];
-                gbMemoryMap[0x0b] = &gbRam[tmpAddress + 0x1000];
+            tmpAddress &= GB_CART_DATA->ram_mask();
+            if (GB_CART_DATA->HasRam()) {
+                gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[tmpAddress];
+                gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[tmpAddress + 0x1000];
             }
             gbDataMBC1.mapperRAMBank = value;
             gbDataMBC1.mapperRAMAddress = tmpAddress;
@@ -93,14 +94,14 @@ void mapperMBC1ROM(uint16_t address, uint8_t value)
             gbDataMBC1.mapperROMHighAddress = value & 0x03;
             tmpAddress = gbDataMBC1.mapperROMBank << 14;
             tmpAddress |= (gbDataMBC1.mapperROMHighAddress) << 19;
-            tmpAddress &= g_gbCartData.rom_mask();
-            gbMemoryMap[0x04] = &gbRom[tmpAddress];
-            gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-            gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-            gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
-            if (g_gbCartData.HasRam()) {
-                gbMemoryMap[0x0a] = &gbRam[0];
-                gbMemoryMap[0x0b] = &gbRam[0x1000];
+            tmpAddress &= GB_CART_DATA->rom_mask();
+            gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+            gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+            gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+            gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
+            if (GB_CART_DATA->HasRam()) {
+                gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[0];
+                gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[0x1000];
             }
 
             gbDataMBC1.mapperRAMBank = 0;
@@ -114,10 +115,10 @@ void mapperMBC1ROM(uint16_t address, uint8_t value)
 
             value = gbDataMBC1.mapperRAMBank & 0x03;
             tmpAddress = value << 13;
-            tmpAddress &= g_gbCartData.ram_mask();
-            if (g_gbCartData.HasRam()) {
-                gbMemoryMap[0x0a] = &gbRam[gbDataMBC1.mapperRAMAddress];
-                gbMemoryMap[0x0b] = &gbRam[gbDataMBC1.mapperRAMAddress + 0x1000];
+            tmpAddress &= GB_CART_DATA->ram_mask();
+            if (GB_CART_DATA->HasRam()) {
+                gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[gbDataMBC1.mapperRAMAddress];
+                gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[gbDataMBC1.mapperRAMAddress + 0x1000];
                 gbDataMBC1.mapperRomBank0Remapping = 0;
             } else
                 gbDataMBC1.mapperRomBank0Remapping |= 2;
@@ -127,25 +128,25 @@ void mapperMBC1ROM(uint16_t address, uint8_t value)
 
             tmpAddress = gbDataMBC1.mapperROMBank << 14;
 
-            tmpAddress &= g_gbCartData.rom_mask();
-            gbMemoryMap[0x04] = &gbRom[tmpAddress];
-            gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-            gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-            gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+            tmpAddress &= GB_CART_DATA->rom_mask();
+            gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+            gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+            gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+            gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
         } else {
             // 16/8, set the high address
 
             tmpAddress = gbDataMBC1.mapperROMBank << 14;
             tmpAddress |= (gbDataMBC1.mapperROMHighAddress) << 19;
-            tmpAddress &= g_gbCartData.rom_mask();
-            gbMemoryMap[0x04] = &gbRom[tmpAddress];
-            gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-            gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-            gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
-            if (g_gbCartData.HasRam()) {
-                gbMemoryMap[0x0a] = &gbRam[0];
-                gbMemoryMap[0x0b] = &gbRam[0x1000];
+            tmpAddress &= GB_CART_DATA->rom_mask();
+            gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+            gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+            gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+            gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
+            if (GB_CART_DATA->HasRam()) {
+                gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[0];
+                gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[0x1000];
             }
         }
         break;
@@ -156,7 +157,7 @@ void mapperMBC1ROM(uint16_t address, uint8_t value)
 void mapperMBC1RAM(uint16_t address, uint8_t value)
 {
     if (gbDataMBC1.mapperRAMEnable) {
-        if (g_gbCartData.HasRam()) {
+        if (GB_CART_DATA->HasRam()) {
             gbMemoryMap[address >> 12][address & 0x0fff] = value;
             systemSaveUpdateCounter = SYSTEM_SAVE_UPDATED;
         }
@@ -180,37 +181,37 @@ void memoryUpdateMapMBC1()
     // check current model
     if (gbDataMBC1.mapperRomBank0Remapping == 3) {
         tmpAddress = (gbDataMBC1.mapperROMHighAddress & 3) << 18;
-        tmpAddress &= g_gbCartData.rom_mask();
-        gbMemoryMap[0x00] = &gbRom[tmpAddress];
-        gbMemoryMap[0x01] = &gbRom[tmpAddress + 0x1000];
-        gbMemoryMap[0x02] = &gbRom[tmpAddress + 0x2000];
-        gbMemoryMap[0x03] = &gbRom[tmpAddress + 0x3000];
+        tmpAddress &= GB_CART_DATA->rom_mask();
+        gbMemoryMap[0x00] = &GB_EMULATOR->rom()[tmpAddress];
+        gbMemoryMap[0x01] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+        gbMemoryMap[0x02] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+        gbMemoryMap[0x03] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
         tmpAddress |= (gbDataMBC1.mapperROMBank & 0xf) << 14;
-        gbMemoryMap[0x04] = &gbRom[tmpAddress];
-        gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-        gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-        gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+        gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+        gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+        gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+        gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
     } else {
         if (gbDataMBC1.mapperMemoryModel == 0) {
             // model is 16/8, so we have a high address in use
             tmpAddress |= (gbDataMBC1.mapperROMHighAddress & 3) << 19;
         }
 
-        tmpAddress &= g_gbCartData.rom_mask();
-        gbMemoryMap[0x04] = &gbRom[tmpAddress];
-        gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-        gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-        gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+        tmpAddress &= GB_CART_DATA->rom_mask();
+        gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+        gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+        gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+        gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
     }
 
-    if (g_gbCartData.HasRam()) {
+    if (GB_CART_DATA->HasRam()) {
         if (gbDataMBC1.mapperMemoryModel == 1) {
-            gbMemoryMap[0x0a] = &gbRam[gbDataMBC1.mapperRAMAddress];
-            gbMemoryMap[0x0b] = &gbRam[gbDataMBC1.mapperRAMAddress + 0x1000];
+            gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[gbDataMBC1.mapperRAMAddress];
+            gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[gbDataMBC1.mapperRAMAddress + 0x1000];
         } else {
-            gbMemoryMap[0x0a] = &gbRam[0];
-            gbMemoryMap[0x0b] = &gbRam[0x1000];
+            gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[0];
+            gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[0x1000];
         }
     }
 }
@@ -240,12 +241,12 @@ void mapperMBC2ROM(uint16_t address, uint8_t value)
 
                 int tmpAddress = value << 14;
 
-                tmpAddress &= g_gbCartData.rom_mask();
+                tmpAddress &= GB_CART_DATA->rom_mask();
 
-                gbMemoryMap[0x04] = &gbRom[tmpAddress];
-                gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-                gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-                gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+                gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+                gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+                gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+                gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
             }
         }
         break;
@@ -256,7 +257,7 @@ void mapperMBC2ROM(uint16_t address, uint8_t value)
 void mapperMBC2RAM(uint16_t address, uint8_t value)
 {
     if (gbDataMBC2.mapperRAMEnable) {
-        if (g_gbCartData.HasRam() && address < 0xa200) {
+        if (GB_CART_DATA->HasRam() && address < 0xa200) {
             gbMemoryMap[address >> 12][address & 0x0fff] = value;
             systemSaveUpdateCounter = SYSTEM_SAVE_UPDATED;
         }
@@ -267,12 +268,12 @@ void memoryUpdateMapMBC2()
 {
     int tmpAddress = gbDataMBC2.mapperROMBank << 14;
 
-    tmpAddress &= g_gbCartData.rom_mask();
+    tmpAddress &= GB_CART_DATA->rom_mask();
 
-    gbMemoryMap[0x04] = &gbRom[tmpAddress];
-    gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-    gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-    gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+    gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+    gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 }
 
 mapperMBC3 gbDataMBC3 = {
@@ -346,7 +347,7 @@ void mapperMBC3ROM(uint16_t address, uint8_t value)
         gbDataMBC3.mapperRAMEnable = ((value & 0x0a) == 0x0a ? 1 : 0);
         break;
     case 0x2000: { // ROM bank select
-        if (g_gbCartData.rom_size() != k4MiB)
+        if (GB_CART_DATA->rom_size() != k4MiB)
             value = value & 0x7f; // Assume 2MiB, unless MBC30.
 
         if (value == 0)
@@ -356,14 +357,14 @@ void mapperMBC3ROM(uint16_t address, uint8_t value)
 
         tmpAddress = value << 14;
 
-        tmpAddress &= g_gbCartData.rom_mask();
+        tmpAddress &= GB_CART_DATA->rom_mask();
 
         gbDataMBC3.mapperROMBank = value;
 
-        gbMemoryMap[0x04] = &gbRom[tmpAddress];
-        gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-        gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-        gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+        gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+        gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+        gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+        gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
         break;
     }
@@ -372,13 +373,13 @@ void mapperMBC3ROM(uint16_t address, uint8_t value)
             if (value == gbDataMBC3.mapperRAMBank)
                 break;
             tmpAddress = value << 13;
-            tmpAddress &= g_gbCartData.ram_mask();
-            gbMemoryMap[0x0a] = &gbRam[tmpAddress];
-            gbMemoryMap[0x0b] = &gbRam[tmpAddress + 0x1000];
+            tmpAddress &= GB_CART_DATA->ram_mask();
+            gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[tmpAddress];
+            gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[tmpAddress + 0x1000];
             gbDataMBC3.mapperRAMBank = value;
             gbDataMBC3.mapperRAMAddress = tmpAddress;
         } else {
-            if (g_gbCartData.has_rtc() && gbDataMBC3.mapperRAMEnable) {
+            if (GB_CART_DATA->has_rtc() && gbDataMBC3.mapperRAMEnable) {
                 gbDataMBC3.mapperRAMBank = -1;
 
                 gbDataMBC3.mapperClockRegister = value;
@@ -386,7 +387,7 @@ void mapperMBC3ROM(uint16_t address, uint8_t value)
         }
         break;
     case 0x6000: // clock latch
-        if (g_gbCartData.has_rtc()) {
+        if (GB_CART_DATA->has_rtc()) {
             if (gbDataMBC3.mapperClockLatch == 0 && value == 1) {
                 memoryUpdateMBC3Clock();
                 gbDataMBC3.mapperLSeconds = gbDataMBC3.mapperSeconds;
@@ -407,11 +408,11 @@ void mapperMBC3RAM(uint16_t address, uint8_t value)
 {
     if (gbDataMBC3.mapperRAMEnable) {
         if (gbDataMBC3.mapperRAMBank >= 0) {
-            if (g_gbCartData.HasRam()) {
+            if (GB_CART_DATA->HasRam()) {
                 gbMemoryMap[address >> 12][address & 0x0fff] = value;
                 systemSaveUpdateCounter = SYSTEM_SAVE_UPDATED;
             }
-        } else if (g_gbCartData.has_rtc()) {
+        } else if (GB_CART_DATA->has_rtc()) {
             time(&gbDataMBC3.mapperLastTime);
             switch (gbDataMBC3.mapperClockRegister) {
             case 0x08:
@@ -443,7 +444,7 @@ uint8_t mapperMBC3ReadRAM(uint16_t address)
     if (gbDataMBC3.mapperRAMEnable) {
         if (gbDataMBC3.mapperRAMBank >= 0) {
             return gbMemoryMap[address >> 12][address & 0x0fff];
-        } else if (g_gbCartData.has_rtc()) {
+        } else if (GB_CART_DATA->has_rtc()) {
             switch (gbDataMBC3.mapperClockRegister) {
             case 0x08:
                 return gbDataMBC3.mapperLSeconds;
@@ -470,18 +471,18 @@ void memoryUpdateMapMBC3()
 {
     int tmpAddress = gbDataMBC3.mapperROMBank << 14;
 
-    tmpAddress &= g_gbCartData.rom_mask();
+    tmpAddress &= GB_CART_DATA->rom_mask();
 
-    gbMemoryMap[0x04] = &gbRom[tmpAddress];
-    gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-    gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-    gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+    gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+    gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
-    if (gbDataMBC3.mapperRAMBank >= 0 && g_gbCartData.HasRam()) {
+    if (gbDataMBC3.mapperRAMBank >= 0 && GB_CART_DATA->HasRam()) {
         tmpAddress = gbDataMBC3.mapperRAMBank << 13;
-        tmpAddress &= g_gbCartData.ram_mask();
-        gbMemoryMap[0x0a] = &gbRam[tmpAddress];
-        gbMemoryMap[0x0b] = &gbRam[tmpAddress + 0x1000];
+        tmpAddress &= GB_CART_DATA->ram_mask();
+        gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[tmpAddress];
+        gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[tmpAddress + 0x1000];
     }
 }
 
@@ -512,12 +513,12 @@ void mapperMBC5ROM(uint16_t address, uint8_t value)
 
             tmpAddress = (value << 14) | (gbDataMBC5.mapperROMHighAddress << 22);
 
-            tmpAddress &= g_gbCartData.rom_mask();
+            tmpAddress &= GB_CART_DATA->rom_mask();
             gbDataMBC5.mapperROMBank = value;
-            gbMemoryMap[0x04] = &gbRom[tmpAddress];
-            gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-            gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-            gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+            gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+            gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+            gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+            gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
         } else {
             value = value & 1;
@@ -526,12 +527,12 @@ void mapperMBC5ROM(uint16_t address, uint8_t value)
 
             tmpAddress = (gbDataMBC5.mapperROMBank << 14) | (value << 22);
 
-            tmpAddress &= g_gbCartData.rom_mask();
+            tmpAddress &= GB_CART_DATA->rom_mask();
             gbDataMBC5.mapperROMHighAddress = value;
-            gbMemoryMap[0x04] = &gbRom[tmpAddress];
-            gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-            gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-            gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+            gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+            gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+            gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+            gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
         }
         break;
     case 0x4000: // RAM bank select
@@ -543,10 +544,10 @@ void mapperMBC5ROM(uint16_t address, uint8_t value)
         if (value == gbDataMBC5.mapperRAMBank)
             break;
         tmpAddress = value << 13;
-        tmpAddress &= g_gbCartData.ram_mask();
-        if (g_gbCartData.HasRam()) {
-            gbMemoryMap[0x0a] = &gbRam[tmpAddress];
-            gbMemoryMap[0x0b] = &gbRam[tmpAddress + 0x1000];
+        tmpAddress &= GB_CART_DATA->ram_mask();
+        if (GB_CART_DATA->HasRam()) {
+            gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[tmpAddress];
+            gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[tmpAddress + 0x1000];
 
             gbDataMBC5.mapperRAMBank = value;
             gbDataMBC5.mapperRAMAddress = tmpAddress;
@@ -559,7 +560,7 @@ void mapperMBC5ROM(uint16_t address, uint8_t value)
 void mapperMBC5RAM(uint16_t address, uint8_t value)
 {
     if (gbDataMBC5.mapperRAMEnable) {
-        if (g_gbCartData.HasRam()) {
+        if (GB_CART_DATA->HasRam()) {
             gbMemoryMap[address >> 12][address & 0x0fff] = value;
             systemSaveUpdateCounter = SYSTEM_SAVE_UPDATED;
         }
@@ -580,17 +581,17 @@ void memoryUpdateMapMBC5()
 {
     int tmpAddress = (gbDataMBC5.mapperROMBank << 14) | (gbDataMBC5.mapperROMHighAddress << 22);
 
-    tmpAddress &= g_gbCartData.rom_mask();
-    gbMemoryMap[0x04] = &gbRom[tmpAddress];
-    gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-    gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-    gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+    tmpAddress &= GB_CART_DATA->rom_mask();
+    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+    gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+    gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
-    if (g_gbCartData.HasRam()) {
+    if (GB_CART_DATA->HasRam()) {
         tmpAddress = gbDataMBC5.mapperRAMBank << 13;
-        tmpAddress &= g_gbCartData.ram_mask();
-        gbMemoryMap[0x0a] = &gbRam[tmpAddress];
-        gbMemoryMap[0x0b] = &gbRam[tmpAddress + 0x1000];
+        tmpAddress &= GB_CART_DATA->ram_mask();
+        gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[tmpAddress];
+        gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[tmpAddress + 0x1000];
     }
 }
 
@@ -629,20 +630,20 @@ void mapperMBC7ROM(uint16_t address, uint8_t value)
 
         tmpAddress = (value << 14);
 
-        tmpAddress &= g_gbCartData.rom_mask();
+        tmpAddress &= GB_CART_DATA->rom_mask();
         gbDataMBC7.mapperROMBank = value;
-        gbMemoryMap[0x04] = &gbRom[tmpAddress];
-        gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-        gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-        gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+        gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+        gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+        gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+        gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
         break;
     case 0x4000: // RAM bank select/enable
         if (value < 8) {
             tmpAddress = (value & 3) << 13;
-            tmpAddress &= g_gbCartData.ram_mask();
-            gbMemoryMap[0x0a] = &gbRam[0];
+            tmpAddress &= GB_CART_DATA->ram_mask();
+            gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[0];
             // Only one RAM bank for MBC7 so wrap around.
-            gbMemoryMap[0x0b] = &gbRam[0];
+            gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[0];
 
             gbDataMBC7.mapperRAMBank = value;
             gbDataMBC7.mapperRAMAddress = tmpAddress;
@@ -695,8 +696,8 @@ void mapperMBC7RAM(uint16_t address, uint8_t value)
         if (!oldCs && gbDataMBC7.cs) {
             if (gbDataMBC7.state == 5) {
                 if (gbDataMBC7.writeEnable) {
-                    gbRam[gbDataMBC7.address * 2] = gbDataMBC7.buffer >> 8;
-                    gbRam[gbDataMBC7.address * 2 + 1] = gbDataMBC7.buffer & 0xff;
+                    GB_EMULATOR->ram()[gbDataMBC7.address * 2] = gbDataMBC7.buffer >> 8;
+                    GB_EMULATOR->ram()[gbDataMBC7.address * 2 + 1] = gbDataMBC7.buffer & 0xff;
                     systemSaveUpdateCounter = SYSTEM_SAVE_UPDATED;
                 }
                 gbDataMBC7.state = 0;
@@ -763,8 +764,8 @@ void mapperMBC7RAM(uint16_t address, uint8_t value)
                             } else if ((gbDataMBC7.address >> 6) == 1) {
                                 if (gbDataMBC7.writeEnable) {
                                     for (int i = 0; i < 256; i++) {
-                                        gbRam[i * 2] = gbDataMBC7.buffer >> 8;
-                                        gbRam[i * 2 + 1] = gbDataMBC7.buffer & 0xff;
+                                        GB_EMULATOR->ram()[i * 2] = gbDataMBC7.buffer >> 8;
+                                        GB_EMULATOR->ram()[i * 2 + 1] = gbDataMBC7.buffer & 0xff;
                                         systemSaveUpdateCounter = SYSTEM_SAVE_UPDATED;
                                     }
                                 }
@@ -772,7 +773,7 @@ void mapperMBC7RAM(uint16_t address, uint8_t value)
                             } else if ((gbDataMBC7.address >> 6) == 2) {
                                 if (gbDataMBC7.writeEnable) {
                                     for (int i = 0; i < 256; i++)
-                                        WRITE16LE((uint16_t*)&gbRam[i * 2], 0xffff);
+                                        WRITE16LE((uint16_t*)&GB_EMULATOR->ram()[i * 2], 0xffff);
                                     systemSaveUpdateCounter = SYSTEM_SAVE_UPDATED;
                                 }
                                 gbDataMBC7.state = 5;
@@ -794,7 +795,7 @@ void mapperMBC7RAM(uint16_t address, uint8_t value)
                         if (gbDataMBC7.count == 1) {
                             gbDataMBC7.state = 4;
                             gbDataMBC7.count = 0;
-                            gbDataMBC7.buffer = (gbRam[gbDataMBC7.address * 2] << 8) | (gbRam[gbDataMBC7.address * 2 + 1]);
+                            gbDataMBC7.buffer = (GB_EMULATOR->ram()[gbDataMBC7.address * 2] << 8) | (GB_EMULATOR->ram()[gbDataMBC7.address * 2 + 1]);
                         }
                         break;
                     case 3:
@@ -829,11 +830,11 @@ void memoryUpdateMapMBC7()
 {
     int tmpAddress = (gbDataMBC7.mapperROMBank << 14);
 
-    tmpAddress &= g_gbCartData.rom_mask();
-    gbMemoryMap[0x04] = &gbRom[tmpAddress];
-    gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-    gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-    gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+    tmpAddress &= GB_CART_DATA->rom_mask();
+    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+    gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+    gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 }
 
 mapperHuC1 gbDataHuC1 = {
@@ -863,12 +864,12 @@ void mapperHuC1ROM(uint16_t address, uint8_t value)
 
         tmpAddress = value << 14;
 
-        tmpAddress &= g_gbCartData.rom_mask();
+        tmpAddress &= GB_CART_DATA->rom_mask();
         gbDataHuC1.mapperROMBank = value;
-        gbMemoryMap[0x04] = &gbRom[tmpAddress];
-        gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-        gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-        gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+        gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+        gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+        gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+        gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
         break;
     case 0x4000: // RAM bank select
         if (gbDataHuC1.mapperMemoryModel == 1) {
@@ -877,9 +878,9 @@ void mapperHuC1ROM(uint16_t address, uint8_t value)
             if (value == gbDataHuC1.mapperRAMBank)
                 break;
             tmpAddress = value << 13;
-            tmpAddress &= g_gbCartData.ram_mask();
-            gbMemoryMap[0x0a] = &gbRam[tmpAddress];
-            gbMemoryMap[0x0b] = &gbRam[tmpAddress + 0x1000];
+            tmpAddress &= GB_CART_DATA->ram_mask();
+            gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[tmpAddress];
+            gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[tmpAddress + 0x1000];
             gbDataHuC1.mapperRAMBank = value;
             gbDataHuC1.mapperRAMAddress = tmpAddress;
         } else {
@@ -887,11 +888,11 @@ void mapperHuC1ROM(uint16_t address, uint8_t value)
             gbDataHuC1.mapperROMHighAddress = value & 0x03;
             tmpAddress = gbDataHuC1.mapperROMBank << 14;
             tmpAddress |= (gbDataHuC1.mapperROMHighAddress) << 19;
-            tmpAddress &= g_gbCartData.rom_mask();
-            gbMemoryMap[0x04] = &gbRom[tmpAddress];
-            gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-            gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-            gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+            tmpAddress &= GB_CART_DATA->rom_mask();
+            gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+            gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+            gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+            gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
         }
         break;
     case 0x6000: // memory model select
@@ -904,7 +905,7 @@ void mapperHuC1ROM(uint16_t address, uint8_t value)
 void mapperHuC1RAM(uint16_t address, uint8_t value)
 {
     if (gbDataHuC1.mapperRAMEnable) {
-        if (g_gbCartData.HasRam()) {
+        if (GB_CART_DATA->HasRam()) {
             gbMemoryMap[address >> 12][address & 0x0fff] = value;
             systemSaveUpdateCounter = SYSTEM_SAVE_UPDATED;
         }
@@ -915,18 +916,18 @@ void memoryUpdateMapHuC1()
 {
     int tmpAddress = gbDataHuC1.mapperROMBank << 14;
 
-    tmpAddress &= g_gbCartData.rom_mask();
+    tmpAddress &= GB_CART_DATA->rom_mask();
 
-    gbMemoryMap[0x04] = &gbRom[tmpAddress];
-    gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-    gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-    gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+    gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+    gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
-    if (g_gbCartData.HasRam()) {
+    if (GB_CART_DATA->HasRam()) {
         tmpAddress = gbDataHuC1.mapperRAMBank << 13;
-        tmpAddress &= g_gbCartData.ram_mask();
-        gbMemoryMap[0x0a] = &gbRam[tmpAddress];
-        gbMemoryMap[0x0b] = &gbRam[tmpAddress + 0x1000];
+        tmpAddress &= GB_CART_DATA->ram_mask();
+        gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[tmpAddress];
+        gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[tmpAddress + 0x1000];
     }
 }
 
@@ -995,21 +996,21 @@ void mapperHuC3ROM(uint16_t address, uint8_t value)
 
         tmpAddress = value << 14;
 
-        tmpAddress &= g_gbCartData.rom_mask();
+        tmpAddress &= GB_CART_DATA->rom_mask();
         gbDataHuC3.mapperROMBank = value;
-        gbMemoryMap[0x04] = &gbRom[tmpAddress];
-        gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-        gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-        gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+        gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+        gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+        gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+        gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
         break;
     case 0x4000: // RAM bank select
         value = value & 0x03;
         if (value == gbDataHuC3.mapperRAMBank)
             break;
         tmpAddress = value << 13;
-        tmpAddress &= g_gbCartData.ram_mask();
-        gbMemoryMap[0x0a] = &gbRam[tmpAddress];
-        gbMemoryMap[0x0b] = &gbRam[tmpAddress + 0x1000];
+        tmpAddress &= GB_CART_DATA->ram_mask();
+        gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[tmpAddress];
+        gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[tmpAddress + 0x1000];
         gbDataHuC3.mapperRAMBank = value;
         gbDataHuC3.mapperRAMAddress = tmpAddress;
         break;
@@ -1036,7 +1037,7 @@ void mapperHuC3RAM(uint16_t address, uint8_t value)
 
     if (gbDataHuC3.mapperRAMFlag < 0x0b || gbDataHuC3.mapperRAMFlag > 0x0e) {
         if (gbDataHuC3.mapperRAMEnable) {
-            if (g_gbCartData.HasRam()) {
+            if (GB_CART_DATA->HasRam()) {
                 gbMemoryMap[address >> 12][address & 0x0fff] = value;
                 systemSaveUpdateCounter = SYSTEM_SAVE_UPDATED;
             }
@@ -1133,17 +1134,17 @@ void memoryUpdateMapHuC3()
 {
     int tmpAddress = gbDataHuC3.mapperROMBank << 14;
 
-    tmpAddress &= g_gbCartData.rom_mask();
-    gbMemoryMap[0x04] = &gbRom[tmpAddress];
-    gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-    gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-    gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+    tmpAddress &= GB_CART_DATA->rom_mask();
+    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+    gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+    gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
-    if (g_gbCartData.HasRam()) {
+    if (GB_CART_DATA->HasRam()) {
         tmpAddress = gbDataHuC3.mapperRAMBank << 13;
-        tmpAddress &= g_gbCartData.ram_mask();
-        gbMemoryMap[0x0a] = &gbRam[tmpAddress];
-        gbMemoryMap[0x0b] = &gbRam[tmpAddress + 0x1000];
+        tmpAddress &= GB_CART_DATA->ram_mask();
+        gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[tmpAddress];
+        gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[tmpAddress + 0x1000];
     }
 }
 
@@ -1270,11 +1271,11 @@ void mapperTAMA5RAM(uint16_t address, uint8_t value)
 
                 int tmpAddress = (gbDataTAMA5.mapperROMBank << 14);
 
-                tmpAddress &= g_gbCartData.rom_mask();
-                gbMemoryMap[0x04] = &gbRom[tmpAddress];
-                gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-                gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-                gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+                tmpAddress &= GB_CART_DATA->rom_mask();
+                gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+                gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+                gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+                gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
                 gbDataTAMA5.mapperCommands[0x0f] = 0;
             } else if ((gbDataTAMA5.mapperCommandNumber & 0xe) == 4) {
@@ -1344,38 +1345,38 @@ void mapperTAMA5RAM(uint16_t address, uint8_t value)
                         // so the game would update the timer values on screen when
                         // the seconds reset to 0... ?
                         case 0x0:
-                            gbTAMA5ram[gbDataTAMA5.mapperRamByteSelect] = secondsL;
+                            GB_EMULATOR->tama5_ram()[gbDataTAMA5.mapperRamByteSelect] = secondsL;
                             break;
                         case 0x1:
-                            gbTAMA5ram[gbDataTAMA5.mapperRamByteSelect] = secondsH;
+                            GB_EMULATOR->tama5_ram()[gbDataTAMA5.mapperRamByteSelect] = secondsH;
                             break;
                         case 0x7:
-                            gbTAMA5ram[gbDataTAMA5.mapperRamByteSelect] = DaysL; // days low
+                            GB_EMULATOR->tama5_ram()[gbDataTAMA5.mapperRamByteSelect] = DaysL; // days low
                             break;
                         case 0x8:
-                            gbTAMA5ram[gbDataTAMA5.mapperRamByteSelect] = DaysH; // days high
+                            GB_EMULATOR->tama5_ram()[gbDataTAMA5.mapperRamByteSelect] = DaysH; // days high
                             break;
                         case 0x9:
-                            gbTAMA5ram[gbDataTAMA5.mapperRamByteSelect] = MonthsL; // month low
+                            GB_EMULATOR->tama5_ram()[gbDataTAMA5.mapperRamByteSelect] = MonthsL; // month low
                             break;
                         case 0xa:
-                            gbTAMA5ram[gbDataTAMA5.mapperRamByteSelect] = MonthsH; // month high
+                            GB_EMULATOR->tama5_ram()[gbDataTAMA5.mapperRamByteSelect] = MonthsH; // month high
                             break;
                         case 0xb:
-                            gbTAMA5ram[gbDataTAMA5.mapperRamByteSelect] = Years4; // years 4th digit
+                            GB_EMULATOR->tama5_ram()[gbDataTAMA5.mapperRamByteSelect] = Years4; // years 4th digit
                             break;
                         case 0xc:
-                            gbTAMA5ram[gbDataTAMA5.mapperRamByteSelect] = Years3; // years 3rd digit
+                            GB_EMULATOR->tama5_ram()[gbDataTAMA5.mapperRamByteSelect] = Years3; // years 3rd digit
                             break;
                         default:
                             break;
                         }
 
-                        gbTAMA5ram[0x54] = seconds; // incorrect ? (not used by the game) ?
-                        gbTAMA5ram[0x64] = minutes;
-                        gbTAMA5ram[0x74] = hours;
-                        gbTAMA5ram[0x84] = DaysH * 16 + DaysL; // incorrect ? (not used by the game) ?
-                        gbTAMA5ram[0x94] = MonthsH * 16 + MonthsL; // incorrect ? (not used by the game) ?
+                        GB_EMULATOR->tama5_ram()[0x54] = seconds; // incorrect ? (not used by the game) ?
+                        GB_EMULATOR->tama5_ram()[0x64] = minutes;
+                        GB_EMULATOR->tama5_ram()[0x74] = hours;
+                        GB_EMULATOR->tama5_ram()[0x84] = DaysH * 16 + DaysL; // incorrect ? (not used by the game) ?
+                        GB_EMULATOR->tama5_ram()[0x94] = MonthsH * 16 + MonthsL; // incorrect ? (not used by the game) ?
 
                         time(&gbDataTAMA5.mapperLastTime);
 
@@ -1389,7 +1390,7 @@ void mapperTAMA5RAM(uint16_t address, uint8_t value)
                     } else if (gbDataTAMA5.mapperRamByteSelect == 0x54) {
                         gbDataTAMA5.mapperHours = (data / 16) * 10 + data % 16;
                     } else {
-                        gbTAMA5ram[gbDataTAMA5.mapperRamByteSelect] = data;
+                        GB_EMULATOR->tama5_ram()[gbDataTAMA5.mapperRamByteSelect] = data;
                     }
                 }
             }
@@ -1406,17 +1407,17 @@ void mapperTAMA5RAM(uint16_t address, uint8_t value)
                 for (int i = 0; i < 0x10; i++)
                     for (int j = 0; j < 0x10; j++)
                         if (!(j & 2))
-                            gbTAMA5ram[((i * 0x10) + j) | 2] = gbTAMA5ram[(i * 0x10) + j];
+                            GB_EMULATOR->tama5_ram()[((i * 0x10) + j) | 2] = GB_EMULATOR->tama5_ram()[(i * 0x10) + j];
                 // Enable this to see the content of the flashrom in 0xe000
                 /*for (int k = 0; k<0x100; k++)
-            gbMemoryMap[0xe][k] = gbTAMA5ram[k];*/
+            gbMemoryMap[0xe][k] = GB_EMULATOR->tama5_ram()[k];*/
 
                 gbMemoryMap[0xa][0] = gbDataTAMA5.mapperRAMEnable = 1;
             } else {
                 if ((value & 0x0e) == 0x0c) {
                     gbDataTAMA5.mapperRamByteSelect = gbDataTAMA5.mapperCommands[6] | (gbDataTAMA5.mapperCommands[7] << 4);
 
-                    uint8_t byte = gbTAMA5ram[gbDataTAMA5.mapperRamByteSelect];
+                    uint8_t byte = GB_EMULATOR->tama5_ram()[gbDataTAMA5.mapperRamByteSelect];
 
                     gbMemoryMap[0xa][0] = (value & 1) ? byte >> 4 : byte & 0x0f;
 
@@ -1429,7 +1430,7 @@ void mapperTAMA5RAM(uint16_t address, uint8_t value)
     } else {
         if (gbDataTAMA5.mapperRAMEnable) {
             if (gbDataTAMA5.mapperRAMBank != -1) {
-                if (g_gbCartData.HasRam()) {
+                if (GB_CART_DATA->HasRam()) {
                     gbMemoryMap[address >> 12][address & 0x0fff] = value;
                     systemSaveUpdateCounter = SYSTEM_SAVE_UPDATED;
                 }
@@ -1448,17 +1449,17 @@ void memoryUpdateMapTAMA5()
 {
     int tmpAddress = (gbDataTAMA5.mapperROMBank << 14);
 
-    tmpAddress &= g_gbCartData.rom_mask();
-    gbMemoryMap[0x04] = &gbRom[tmpAddress];
-    gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-    gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-    gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+    tmpAddress &= GB_CART_DATA->rom_mask();
+    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+    gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+    gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
-    if (g_gbCartData.HasRam()) {
+    if (GB_CART_DATA->HasRam()) {
         tmpAddress = 0 << 13;
-        tmpAddress &= g_gbCartData.ram_mask();
-        gbMemoryMap[0x0a] = &gbRam[tmpAddress];
-        gbMemoryMap[0x0b] = &gbRam[tmpAddress + 0x1000];
+        tmpAddress &= GB_CART_DATA->ram_mask();
+        gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[tmpAddress];
+        gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[tmpAddress + 0x1000];
     }
 }
 
@@ -1498,12 +1499,12 @@ void mapperMMM01ROM(uint16_t address, uint8_t value)
         } else
             tmpAddress |= gbDataMMM01.mapperRomBank0Remapping << 18;
 
-        tmpAddress &= g_gbCartData.rom_mask();
+        tmpAddress &= GB_CART_DATA->rom_mask();
         gbDataMMM01.mapperROMBank = value;
-        gbMemoryMap[0x04] = &gbRom[tmpAddress];
-        gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-        gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-        gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+        gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+        gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+        gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+        gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
         break;
     case 0x4000: // RAM bank select
         if (gbDataMMM01.mapperMemoryModel == 1) {
@@ -1512,9 +1513,9 @@ void mapperMMM01ROM(uint16_t address, uint8_t value)
             if (value == gbDataMBC1.mapperRAMBank)
                 break;
             tmpAddress = value << 13;
-            tmpAddress &= g_gbCartData.ram_mask();
-            gbMemoryMap[0x0a] = &gbRam[tmpAddress];
-            gbMemoryMap[0x0b] = &gbRam[tmpAddress + 0x1000];
+            tmpAddress &= GB_CART_DATA->ram_mask();
+            gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[tmpAddress];
+            gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[tmpAddress + 0x1000];
             gbDataMMM01.mapperRAMBank = value;
             gbDataMMM01.mapperRAMAddress = tmpAddress;
         } else {
@@ -1522,19 +1523,19 @@ void mapperMMM01ROM(uint16_t address, uint8_t value)
             gbDataMMM01.mapperROMHighAddress = value & 0x03;
             tmpAddress = gbDataMMM01.mapperROMBank << 14;
             tmpAddress |= (gbDataMMM01.mapperROMHighAddress) << 19;
-            tmpAddress &= g_gbCartData.rom_mask();
-            gbMemoryMap[0x04] = &gbRom[tmpAddress];
-            gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-            gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-            gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+            tmpAddress &= GB_CART_DATA->rom_mask();
+            gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+            gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+            gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+            gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
             gbDataMMM01.mapperRomBank0Remapping = ((value << 1) | (value & 0x40 ? 1 : 0)) & 0xff;
             tmpAddress = gbDataMMM01.mapperRomBank0Remapping << 18;
-            tmpAddress &= g_gbCartData.rom_mask();
-            gbMemoryMap[0x00] = &gbRom[tmpAddress];
-            gbMemoryMap[0x01] = &gbRom[tmpAddress + 0x1000];
-            gbMemoryMap[0x02] = &gbRom[tmpAddress + 0x2000];
-            gbMemoryMap[0x03] = &gbRom[tmpAddress + 0x3000];
+            tmpAddress &= GB_CART_DATA->rom_mask();
+            gbMemoryMap[0x00] = &GB_EMULATOR->rom()[tmpAddress];
+            gbMemoryMap[0x01] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+            gbMemoryMap[0x02] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+            gbMemoryMap[0x03] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
         }
         break;
     case 0x6000: // memory model select
@@ -1547,7 +1548,7 @@ void mapperMMM01ROM(uint16_t address, uint8_t value)
 void mapperMMM01RAM(uint16_t address, uint8_t value)
 {
     if (gbDataMMM01.mapperRAMEnable) {
-        if (g_gbCartData.HasRam()) {
+        if (GB_CART_DATA->HasRam()) {
             gbMemoryMap[address >> 12][address & 0x0fff] = value;
             systemSaveUpdateCounter = SYSTEM_SAVE_UPDATED;
         }
@@ -1564,22 +1565,22 @@ void memoryUpdateMapMMM01()
         tmpAddress |= (gbDataMMM01.mapperROMHighAddress) << 19;
     }
 
-    tmpAddress &= g_gbCartData.rom_mask();
-    gbMemoryMap[0x04] = &gbRom[tmpAddress];
-    gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
-    gbMemoryMap[0x06] = &gbRom[tmpAddress + 0x2000];
-    gbMemoryMap[0x07] = &gbRom[tmpAddress + 0x3000];
+    tmpAddress &= GB_CART_DATA->rom_mask();
+    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+    gbMemoryMap[0x06] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+    gbMemoryMap[0x07] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
     tmpAddress = gbDataMMM01.mapperRomBank0Remapping << 18;
-    tmpAddress &= g_gbCartData.rom_mask();
-    gbMemoryMap[0x00] = &gbRom[tmpAddress];
-    gbMemoryMap[0x01] = &gbRom[tmpAddress + 0x1000];
-    gbMemoryMap[0x02] = &gbRom[tmpAddress + 0x2000];
-    gbMemoryMap[0x03] = &gbRom[tmpAddress + 0x3000];
+    tmpAddress &= GB_CART_DATA->rom_mask();
+    gbMemoryMap[0x00] = &GB_EMULATOR->rom()[tmpAddress];
+    gbMemoryMap[0x01] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
+    gbMemoryMap[0x02] = &GB_EMULATOR->rom()[tmpAddress + 0x2000];
+    gbMemoryMap[0x03] = &GB_EMULATOR->rom()[tmpAddress + 0x3000];
 
-    if (g_gbCartData.HasRam()) {
-        gbMemoryMap[0x0a] = &gbRam[gbDataMMM01.mapperRAMAddress];
-        gbMemoryMap[0x0b] = &gbRam[gbDataMMM01.mapperRAMAddress + 0x1000];
+    if (GB_CART_DATA->HasRam()) {
+        gbMemoryMap[0x0a] = &GB_EMULATOR->ram()[gbDataMMM01.mapperRAMAddress];
+        gbMemoryMap[0x0b] = &GB_EMULATOR->ram()[gbDataMMM01.mapperRAMAddress + 0x1000];
     }
 }
 
@@ -1622,10 +1623,10 @@ void mapperGS3ROM(uint16_t address, uint8_t value)
                 break;
             tmpAddress = value << 13;
 
-            tmpAddress &= g_gbCartData.rom_mask();
+            tmpAddress &= GB_CART_DATA->rom_mask();
             gbDataGS3.mapperROMBank = value;
-            gbMemoryMap[0x04] = &gbRom[tmpAddress];
-            gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
+            gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+            gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
         } else
             gbMemoryMap[address >> 12][address & 0x0fff] = value;
         break;
@@ -1636,8 +1637,8 @@ void memoryUpdateMapGS3()
 {
     int tmpAddress = gbDataGS3.mapperROMBank << 13;
 
-    tmpAddress &= g_gbCartData.rom_mask();
+    tmpAddress &= GB_CART_DATA->rom_mask();
     // GS can only change a half ROM bank
-    gbMemoryMap[0x04] = &gbRom[tmpAddress];
-    gbMemoryMap[0x05] = &gbRom[tmpAddress + 0x1000];
+    gbMemoryMap[0x04] = &GB_EMULATOR->rom()[tmpAddress];
+    gbMemoryMap[0x05] = &GB_EMULATOR->rom()[tmpAddress + 0x1000];
 }

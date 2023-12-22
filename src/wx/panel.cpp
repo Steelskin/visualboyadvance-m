@@ -115,9 +115,6 @@ GameArea::GameArea()
           std::bind(&GameArea::ResetPanel, this)),
       scale_observer_(config::OptionID::kDispScale,
                       std::bind(&GameArea::AdjustSize, this, true)),
-      gb_border_observer_(
-          config::OptionID::kPrefBorderOn,
-          std::bind(&GameArea::OnGBBorderChanged, this, std::placeholders::_1)),
       gb_palette_observer_(
           {config::OptionID::kGBPalette0, config::OptionID::kGBPalette1,
            config::OptionID::kGBPalette2,
@@ -276,10 +273,10 @@ void GameArea::LoadGame(const wxString& name)
         // Set up the core for the colorizer hack.
         setColorizerHack(OPTION(kGBColorizerHack));
 
-        const bool use_bios = gbCgbMode ? OPTION(kPrefUseBiosGBC).Get()
+        const bool use_bios = GB_EMULATOR->HasCgbHw() ? OPTION(kPrefUseBiosGBC).Get()
                                         : OPTION(kPrefUseBiosGB).Get();
 
-        const wxString bios_file = gbCgbMode ? OPTION(kGBGBCBiosFile).Get() : OPTION(kGBBiosFile).Get();
+        const wxString bios_file = GB_EMULATOR->HasCgbHw() ? OPTION(kGBGBCBiosFile).Get() : OPTION(kGBBiosFile).Get();
         gbCPUInit(bios_file.To8BitData().data(), use_bios);
 
         if (use_bios && !coreOptions.useBios) {
@@ -2656,17 +2653,6 @@ void GameArea::ShowMenuBar()
     SendSizeEvent();
     menu_bar_hidden = false;
 #endif
-}
-
-void GameArea::OnGBBorderChanged(config::Option* option) {
-    if (game_type() == IMAGE_GB && gbSgbMode) {
-        if (option->GetBool()) {
-            AddBorder();
-            gbSgbRenderBorder();
-        } else {
-            DelBorder();
-        }
-    }
 }
 
 void GameArea::UpdateLcdFilter() {

@@ -5,30 +5,28 @@
 
 extern uint8_t* bios;
 
-extern uint8_t* gbRom;
-extern uint8_t* gbRam;
-extern uint8_t* gbVram;
-extern uint8_t* gbWram;
-extern uint8_t* gbMemory;
-extern uint16_t* gbLineBuffer;
-extern uint8_t* gbTAMA5ram;
+// extern uint8_t* GB_EMULATOR->rom();
+// extern uint8_t* GB_EMULATOR->ram();
+// extern uint8_t* GB_EMULATOR->vram();
+// extern uint8_t* GB_EMULATOR->wram();
+// extern uint8_t* GB_EMULATOR->memory();
+// extern uint16_t* GB_EMULATOR->line_buffer();
+// extern uint8_t* GB_EMULATOR->tama5_ram();
 
 extern uint8_t* gbMemoryMap[16];
 
 extern int gbFrameSkip;
 extern uint16_t gbColorFilter[32768];
-extern uint32_t gbEmulatorType;
+// extern uint32_t gbEmulatorType;
 extern uint32_t gbPaletteOption;
-extern bool gbCgbMode;
-extern bool gbSgbMode;
+// extern bool GB_EMULATOR->HasCgbHw();
+// extern bool GB_EMULATOR->HasSgbHw();
 extern int gbWindowLine;
 extern int gbSpeed;
 extern uint8_t gbBgp[4];
 extern uint8_t gbObp0[4];
 extern uint8_t gbObp1[4];
 extern uint16_t gbPalette[128];
-extern bool gbBorderAutomatic;
-extern bool gbBorderOn;
 extern bool gbColorOption;
 extern bool gbScreenOn;
 extern uint8_t gbSCYLine[300];

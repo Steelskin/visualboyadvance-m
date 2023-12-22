@@ -991,6 +991,7 @@ set(
     src/gb/gbCartData.cpp
     src/gb/gbCheats.cpp
     src/gb/gbDis.cpp
+    src/gb/gbEmulator.cpp
     src/gb/gbGfx.cpp
     src/gb/gbGlobals.cpp
     src/gb/gbMemory.cpp
@@ -1006,6 +1007,7 @@ set(
     src/gb/gbCheats.h
     src/gb/gbCodes.h
     src/gb/gbCodesCB.h
+    src/gb/gbEmulator.h
     src/gb/gbGlobals.h
     src/gb/gbMemory.h
     src/gb/gbPrinter.h

@@ -958,32 +958,32 @@ public:
             if (isgb) {
                 block->offset = 0xa000;
 
-                if (gbRam)
-                    block->data = gbRam;
+                if (GB_EMULATOR->ram())
+                    block->data = GB_EMULATOR->ram();
                 else
-                    block->data = &gbMemory[0xa000];
+                    block->data = &GB_EMULATOR->memory()[0xa000];
 
-                block->saved = (uint8_t*)malloc(g_gbCartData.ram_size());
-                block->size = g_gbCartData.ram_size();
-                block->bits = (uint8_t*)malloc(g_gbCartData.ram_size() >> 3);
+                block->saved = (uint8_t*)malloc(GB_CART_DATA->ram_size());
+                block->size = GB_CART_DATA->ram_size();
+                block->bits = (uint8_t*)malloc(GB_CART_DATA->ram_size() >> 3);
 
-                if (gbCgbMode) {
+                if (GB_EMULATOR->HasCgbHw()) {
                     block++;
                     block->offset = 0xc000;
-                    block->data = &gbMemory[0xc000];
+                    block->data = &GB_EMULATOR->memory()[0xc000];
                     block->saved = (uint8_t*)malloc(0x1000);
                     block->size = 0x1000;
                     block->bits = (uint8_t*)malloc(0x1000 >> 3);
                     block++;
                     block->offset = 0xd000;
-                    block->data = gbWram;
+                    block->data = GB_EMULATOR->wram();
                     block->saved = (uint8_t*)malloc(0x8000);
                     block->size = 0x8000;
                     block->bits = (uint8_t*)malloc(0x8000 >> 3);
                 } else {
                     block++;
                     block->offset = 0xc000;
-                    block->data = &gbMemory[0xc000];
+                    block->data = &GB_EMULATOR->memory()[0xc000];
                     block->saved = (uint8_t*)malloc(0x2000);
                     block->size = 0x2000;
                     block->bits = (uint8_t*)malloc(0x2000 >> 3);

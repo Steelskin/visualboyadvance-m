@@ -104,7 +104,6 @@ extern bool systemCanChangeSoundQuality();
 extern void systemShowSpeed(int);
 extern void system10Frames();
 extern void systemFrame();
-extern void systemGbBorderOn();
 extern void (*dbgOutput)(const char *s, uint32_t addr);
 extern void (*dbgSignal)(int sig, int number);
 extern uint16_t systemColorMap16[0x10000];

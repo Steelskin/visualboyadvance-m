@@ -1213,14 +1213,6 @@ bool systemPauseOnFrame()
     return false;
 }
 
-void systemGbBorderOn()
-{
-    GameArea* panel = wxGetApp().frame->GetPanel();
-
-    if (panel)
-        panel->AddBorder();
-}
-
 class SoundDriver;
 SoundDriver* systemSoundInit()
 {

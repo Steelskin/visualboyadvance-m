@@ -5,6 +5,7 @@
 #include "../Util.h"
 #include "../common/Port.h"
 #include "gb.h"
+#include "gbEmulator.h"
 #include "gbGlobals.h"
 
 extern uint8_t* pix;
@@ -289,16 +290,17 @@ void gbSgbDrawBorderTile(int x, int y, int tile, int attr)
 
 void gbSgbRenderBorder()
 {
-    if (gbBorderOn) {
-        uint8_t* fromAddress = gbSgbBorder;
+    if (!GB_EMULATOR->sgb_border_on()) {
+        return;
+    }
 
-        for (uint8_t y = 0; y < 28; y++) {
-            for (uint8_t x = 0; x < 32; x++) {
-                uint8_t tile = *fromAddress++;
-                uint8_t attr = *fromAddress++;
+    uint8_t* fromAddress = gbSgbBorder;
+    for (uint8_t y = 0; y < 28; y++) {
+        for (uint8_t x = 0; x < 32; x++) {
+            uint8_t tile = *fromAddress++;
+            uint8_t attr = *fromAddress++;
 
-                gbSgbDrawBorderTile(x * 8, y * 8, tile, attr);
-            }
+            gbSgbDrawBorderTile(x * 8, y * 8, tile, attr);
         }
     }
 }
@@ -317,24 +319,13 @@ void gbSgbPicture()
 
     gbSgbCGBSupport |= 4;
 
-    if (gbBorderAutomatic && !gbBorderOn && gbSgbCGBSupport > 4) {
-        gbBorderOn = true;
-        systemGbBorderOn();
+    if (GB_EMULATOR->sgb_border_on() && !gbSgbMask) {
+        gbSgbRenderBorder();
     }
 
-    if (gbBorderOn && !gbSgbMask)
-        gbSgbRenderBorder();
-
-    if (gbSgbMode && gbCgbMode && gbSgbCGBSupport > 4) {
+    if (gbSgbCGBSupport > 4) {
         gbSgbCGBSupport = 0;
-        gbSgbMode = false;
-        gbSgbMask = 0;
-        gbSgbRenderBorder();
-        gbReset();
     }
-
-    if (gbSgbCGBSupport > 4)
-        gbSgbCGBSupport = 0;
 }
 
 void gbSgbSetPalette(int a, int b, uint16_t* p)
@@ -351,8 +342,9 @@ void gbSgbSetPalette(int a, int b, uint16_t* p)
     }
 
     gbPalette[0] = gbPalette[4] = gbPalette[8] = gbPalette[12] = bit00;
-    if (gbBorderOn && !gbSgbMask)
+    if (GB_EMULATOR->sgb_border_on() && !gbSgbMask) {
         gbSgbRenderBorder();
+    }
 }
 
 void gbSgbScpPalette()
@@ -376,8 +368,9 @@ void gbSgbSetATF(int n)
 
     if (gbSgbPacket[1] & 0x40) {
         gbSgbMask = 0;
-        if (gbBorderOn)
+        if (GB_EMULATOR->sgb_border_on()) {
             gbSgbRenderBorder();
+        }
     }
 }
 
@@ -403,8 +396,9 @@ void gbSgbSetPalette()
 
     if (atf & 0x40) {
         gbSgbMask = 0;
-        if (gbBorderOn)
+        if (GB_EMULATOR->sgb_border_on()) {
             gbSgbRenderBorder();
+        }
     }
 }
 
@@ -642,9 +636,8 @@ void gbSgbMaskEnable()
         gbSgbFillScreen(gbPalette[0]);
         break;
     }
-    if (!gbSgbMask) {
-        if (gbBorderOn)
-            gbSgbRenderBorder();
+    if (GB_EMULATOR->sgb_border_on() && !gbSgbMask) {
+        gbSgbRenderBorder();
     }
 }
 
@@ -654,27 +647,16 @@ void gbSgbChrTransfer()
 
     int address = (gbSgbPacket[1] & 1) * (128 * 32);
 
-    if (gbSgbPacket[1] & 1)
+    if (gbSgbPacket[1] & 1) {
         gbSgbCGBSupport |= 2;
-    else
+    } else {
         gbSgbCGBSupport |= 1;
+    }
 
     memcpy(&gbSgbBorderChar[address], gbSgbScreenBuffer, 128 * 32);
 
-    if (gbBorderAutomatic && !gbBorderOn && gbSgbCGBSupport > 4) {
-        gbBorderOn = true;
-        systemGbBorderOn();
-    }
-
-    if (gbBorderOn && !gbSgbMask)
+    if (GB_EMULATOR->sgb_border_on() && !gbSgbMask) {
         gbSgbRenderBorder();
-
-    if (gbSgbMode && gbCgbMode && gbSgbCGBSupport == 7) {
-        gbSgbCGBSupport = 0;
-        gbSgbMode = false;
-        gbSgbMask = 0;
-        gbSgbRenderBorder();
-        gbReset();
     }
 
     if (gbSgbCGBSupport > 4)

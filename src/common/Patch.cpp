@@ -153,7 +153,7 @@ static uLong computePatchCRC(FILE* f, unsigned int size)
     return crc;
 }
 
-static bool patchApplyIPS(const char* patchname, uint8_t** r, int* s)
+static bool patchApplyIPS(const char* patchname, uint8_t** r, int* s, bool no_resize = false)
 {
     // from the IPS spec at http://zerosoft.zophar.net/ips.htm
     FILE* f = utilOpenFile(patchname, "rb");
@@ -191,6 +191,9 @@ static bool patchApplyIPS(const char* patchname, uint8_t** r, int* s)
                 b = -1;
             // check if we need to reallocate our ROM
             if ((offset + len) >= size) {
+                if (no_resize) {
+                    return false;
+                }
                 size *= 2;
                 rom = (uint8_t*)realloc(rom, size);
                 *r = rom;
@@ -214,7 +217,7 @@ static bool patchApplyIPS(const char* patchname, uint8_t** r, int* s)
     return result;
 }
 
-static bool patchApplyUPS(const char* patchname, uint8_t** rom, int* size)
+static bool patchApplyUPS(const char* patchname, uint8_t** rom, int* size, bool no_resize = false)
 {
     int64_t srcCRC, dstCRC, patchCRC;
 
@@ -277,6 +280,9 @@ static bool patchApplyUPS(const char* patchname, uint8_t** rom, int* size)
         return false;
     }
     if (dataSize > *size) {
+        if (no_resize) {
+            return false;
+        }
         *rom = (uint8_t*)realloc(*rom, dataSize);
         memset(*rom + *size, 0, dataSize - *size);
         *size = (int)(dataSize);
@@ -304,7 +310,7 @@ static bool patchApplyUPS(const char* patchname, uint8_t** rom, int* size)
     return true;
 }
 
-static bool patchApplyBPS(const char* patchname, uint8_t** rom, int* size)
+static bool patchApplyBPS(const char* patchname, uint8_t** rom, int* size, bool no_resize = false)
 {
     int64_t srcCRC, dstCRC, patchCRC;
 
@@ -412,6 +418,10 @@ static bool patchApplyBPS(const char* patchname, uint8_t** rom, int* size)
     if(crc == dstCRC)
     {
         if (dataSize > *size) {
+            if (no_resize) {
+                free(new_rom);
+                return false;
+            }
             *rom = (uint8_t*)realloc(*rom, dataSize);
         }
         memcpy(*rom, new_rom, dataSize);
@@ -454,7 +464,7 @@ static int ppfFileIdLen(FILE* f, int version)
     return (version == 2) ? int(readInt4(f)) : readInt2(f);
 }
 
-static bool patchApplyPPF1(FILE* f, uint8_t** rom, int* size)
+static bool patchApplyPPF1(FILE* f, uint8_t* rom, int* size)
 {
     fseek(f, 0, SEEK_END);
     int count = ftell(f);
@@ -463,8 +473,6 @@ static bool patchApplyPPF1(FILE* f, uint8_t** rom, int* size)
     count -= 56;
 
     fseek(f, 56, SEEK_SET);
-
-    uint8_t* mem = *rom;
 
     while (count > 0) {
         int64_t offset_read = readInt4(f);
@@ -476,7 +484,7 @@ static bool patchApplyPPF1(FILE* f, uint8_t** rom, int* size)
             break;
         if (offset + len > *size)
             break;
-        if (fread(&mem[offset], 1, len, f) != (size_t)len)
+        if (fread(&rom[offset], 1, len, f) != (size_t)len)
             break;
         count -= 4 + 1 + len;
     }
@@ -484,7 +492,7 @@ static bool patchApplyPPF1(FILE* f, uint8_t** rom, int* size)
     return (count == 0);
 }
 
-static bool patchApplyPPF2(FILE* f, uint8_t** rom, int* size)
+static bool patchApplyPPF2(FILE* f, uint8_t* rom, int* size)
 {
     fseek(f, 0, SEEK_END);
     int count = ftell(f);
@@ -502,11 +510,9 @@ static bool patchApplyPPF2(FILE* f, uint8_t** rom, int* size)
     if (datalen != *size)
         return false;
 
-    uint8_t* mem = *rom;
-
     uint8_t block[1024];
     if (fread(&block, 1, 1024, f) == 0 ||
-            memcmp(&mem[0x9320], &block, 1024) != 0)
+            memcmp(&rom[0x9320], &block, 1024) != 0)
         return false;
 
     int idlen = ppfFileIdLen(f, 2);
@@ -525,7 +531,7 @@ static bool patchApplyPPF2(FILE* f, uint8_t** rom, int* size)
             break;
         if (offset + len > *size)
             break;
-        if (fread(&mem[offset], 1, len, f) != (size_t)len)
+        if (fread(&rom[offset], 1, len, f) != (size_t)len)
             break;
         count -= 4 + 1 + len;
     }
@@ -533,7 +539,7 @@ static bool patchApplyPPF2(FILE* f, uint8_t** rom, int* size)
     return (count == 0);
 }
 
-static bool patchApplyPPF3(FILE* f, uint8_t** rom, int* size)
+static bool patchApplyPPF3(FILE* f, uint8_t* rom, int* size)
 {
     fseek(f, 0, SEEK_END);
     int count = ftell(f);
@@ -548,12 +554,10 @@ static bool patchApplyPPF3(FILE* f, uint8_t** rom, int* size)
     int undo = fgetc(f);
     fgetc(f);
 
-    uint8_t* mem = *rom;
-
     if (blockcheck) {
         uint8_t block[1024];
         if (fread(&block, 1, 1024, f) == 0 ||
-                memcmp(&mem[(imagetype == 0) ? 0x9320 : 0x80A0], &block, 1024) != 0)
+                memcmp(&rom[(imagetype == 0) ? 0x9320 : 0x80A0], &block, 1024) != 0)
             return false;
         count -= 1024;
     }
@@ -573,7 +577,7 @@ static bool patchApplyPPF3(FILE* f, uint8_t** rom, int* size)
             break;
         if (offset + len > *size)
             break;
-        if (fread(&mem[offset], 1, len, f) != (size_t)len)
+        if (fread(&rom[offset], 1, len, f) != (size_t)len)
             break;
         if (undo)
             fseeko64(f, len, SEEK_CUR);
@@ -585,7 +589,7 @@ static bool patchApplyPPF3(FILE* f, uint8_t** rom, int* size)
     return (count == 0);
 }
 
-static bool patchApplyPPF(const char* patchname, uint8_t** rom, int* size)
+static bool patchApplyPPF(const char* patchname, uint8_t* rom, int* size)
 {
     FILE* f = utilOpenFile(patchname, "rb");
     if (!f)
@@ -627,7 +631,27 @@ bool applyPatch(const char* patchname, uint8_t** rom, int* size)
     if (_stricmp(p, ".bps") == 0)
         return patchApplyBPS(patchname, rom, size);
     if (_stricmp(p, ".ppf") == 0)
+        return patchApplyPPF(patchname, *rom, size);
+#endif
+    return false;
+}
+
+bool applyPatchNoResize(const char* patchname, uint8_t* rom, int* size) {
+#ifndef __LIBRETRO__
+    if (strlen(patchname) < 5)
+        return false;
+    const char* p = strrchr(patchname, '.');
+    if (p == NULL)
+        return false;
+    if (_stricmp(p, ".ips") == 0)
+        return patchApplyIPS(patchname, &rom, size, true);
+    if (_stricmp(p, ".ups") == 0)
+        return patchApplyUPS(patchname, &rom, size, true);
+    if (_stricmp(p, ".bps") == 0)
+        return patchApplyBPS(patchname, &rom, size, true);
+    if (_stricmp(p, ".ppf") == 0)
         return patchApplyPPF(patchname, rom, size);
 #endif
     return false;
+
 }

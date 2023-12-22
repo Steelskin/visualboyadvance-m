@@ -486,7 +486,7 @@ void gbCheatWrite(bool reboot)
                     case 0x9D:
                     case 0x9E:
                     case 0x9F:
-                        int oldbank = gbMemory[0xff70];
+                        int oldbank = GB_EMULATOR->memory()[0xff70];
                         gbWriteMemory(0xff70, gbCheatList[i].code & 0xf);
                         gbWriteMemory(address, gbCheatList[i].value);
                         gbWriteMemory(0xff70, oldbank);
