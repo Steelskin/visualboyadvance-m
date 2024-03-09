@@ -432,8 +432,9 @@ EVT_HANDLER_MASK(ImportGamesharkCodeFile, "Import Game Shark code file...", CMDE
     int ret = ShowModal(&dlg);
     path = dlg.GetDirectory();
 
-    if (ret != wxID_OK)
+    if (ret != wxID_OK) {
         return;
+    }
 
     wxString fn = dlg.GetPath();
     ret = wxMessageBox(_("Importing a code file will replace any loaded cheats. Do you want to continue?"),
@@ -443,12 +444,12 @@ EVT_HANDLER_MASK(ImportGamesharkCodeFile, "Import Game Shark code file...", CMDE
         wxString msg;
         bool res;
 
-        if (panel->game_type() == IMAGE_GB)
+        if (panel->game_type() == IMAGE_GB) {
             // FIXME: this routine will not work on big-endian systems
             // if the underlying file format is little-endian
             // (fix in gb/gbCheats.cpp)
-            res = gbCheatReadGSCodeFile(UTF8(fn));
-        else {
+            res = wxGetApp().cheat_manager().LoadCheatList(fn);
+        } else {
             // need to select game first
             wxFFile f(fn, wxT("rb"));
 

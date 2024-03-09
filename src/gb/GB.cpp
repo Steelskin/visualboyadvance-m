@@ -561,6 +561,7 @@ int GBSYNCHRONIZE_CLOCK_TICKS = 52920;
 
 // general
 gbCartData g_gbCartData;
+gbCheatSaveStateDelegate* g_gbSaveStateDelegate = nullptr;
 int clockTicks = 0;
 bool gbSystemMessage = false;
 int gbGBCColorType = 0;
@@ -2144,8 +2145,10 @@ void gbWriteMemory(uint16_t address, uint8_t value)
 
 uint8_t gbReadMemory(uint16_t address)
 {
-    if (gbCheatMap[address])
-        return gbCheatRead(address);
+    const auto cheat_read = GB_CHEAT_MANAGER.readAddressWithCheats(gbMemoryMap, address);
+    if (cheat_read) {
+        return cheat_read.value();
+    }
 
     if (address < 0x8000)
         return gbMemoryMap[address >> 12][address & 0x0fff];
@@ -2430,7 +2433,7 @@ uint8_t gbReadMemory(uint16_t address)
 
 void gbVblank_interrupt()
 {
-    gbCheatWrite(false); // Emulates GS codes.
+    GB_CHEAT_MANAGER.applyCheatsForInterrupt();  // Emulates GS codes.
     gbMemory[0xff0f] = register_IF &= 0xfe;
     gbWriteMemory(--SP.W, PC.B.B1);
     gbWriteMemory(--SP.W, PC.B.B0);
@@ -2439,7 +2442,7 @@ void gbVblank_interrupt()
 
 void gbLcd_interrupt()
 {
-    gbCheatWrite(false); // Emulates GS codes.
+    GB_CHEAT_MANAGER.applyCheatsForInterrupt();  // Emulates GS codes.
     gbMemory[0xff0f] = register_IF &= 0xfd;
     gbWriteMemory(--SP.W, PC.B.B1);
     gbWriteMemory(--SP.W, PC.B.B0);
@@ -3133,7 +3136,7 @@ void gbReset()
     gbScreenOn = true;
     gbSystemMessage = false;
 
-    gbCheatWrite(true); // Emulates GS codes.
+    GB_CHEAT_MANAGER.applyCheatsForReset();  // Emulates GS codes.
 }
 
 bool gbReadGSASnapshot(const char* fileName)
@@ -3313,7 +3316,8 @@ static bool gbWriteSaveState(gzFile gzFile)
 
     gbSoundSaveGame(gzFile);
 
-    gbCheatsSaveGame(gzFile);
+    // FIXME: Need conversion to save cheats.
+    g_gbSaveStateDelegate->SaveCheatsToFile(gzFile);
 
     utilWriteInt(gzFile, gbLcdModeDelayed);
     utilWriteInt(gzFile, gbLcdTicksDelayed);
@@ -3608,11 +3612,7 @@ static bool gbReadSaveState(gzFile gzFile)
     systemDrawScreen();
 
     if (version > GBSAVE_GAME_VERSION_1) {
-        if (coreOptions.skipSaveGameCheats) {
-            gbCheatsReadGameSkip(gzFile, version);
-        } else {
-            gbCheatsReadGame(gzFile, version);
-        }
+        g_gbSaveStateDelegate->LoadCheatsFromFile(gzFile, !coreOptions.skipSaveGameCheats);
     }
 
     if (version < 11) {

@@ -635,15 +635,15 @@ int ReadOpts(int argc, char ** argv)
 				log("Warning: cannot add more than %d cheats.\n", MAX_CHEATS);
 				break;
 			}
-		  {
-			  //char* cpy;
-			  //cpy = (char *)malloc(1 + strlen(optarg));
-			  //strcpy(cpy, optarg);
-			  //preparedCheatCodes[preparedCheats++] = cpy;
-			std::string cpy = optarg;
-			preparedCheatCodes[preparedCheats++] = cpy.c_str();
-		  }
-		  break;
+			{
+				//char* cpy;
+				//cpy = (char *)malloc(1 + strlen(optarg));
+				//strcpy(cpy, optarg);
+				//preparedCheatCodes[preparedCheats++] = cpy;
+				std::string cpy = optarg;
+				preparedCheatCodes[preparedCheats++] = cpy.c_str();
+			}
+			break;
 		case OPT_AUTOFIRE:
 			// --autofire
 			autoFireMaxCount = fromDec(optarg);

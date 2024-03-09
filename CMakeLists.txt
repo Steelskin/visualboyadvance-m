@@ -930,6 +930,7 @@ set(
     src/common/sizes.h
     src/common/SoundDriver.h
     src/common/SoundSDL.h
+    src/common/system.h
 )
 
 if(MSVC)

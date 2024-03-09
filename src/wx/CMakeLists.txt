@@ -778,6 +778,7 @@ set(
     wayland.cpp
     strutils.cpp
     wxutil.cpp
+    config/cheat-manager.cpp
     config/game-control.cpp
     config/internal/option-internal.cpp
     config/internal/shortcuts-internal.cpp
@@ -786,12 +787,15 @@ set(
     config/shortcuts.cpp
     config/user-input.cpp
     dialogs/accel-config.cpp
+    dialogs/cheat-edit.cpp
+    dialogs/cheat-list.cpp
     dialogs/directories-config.cpp
     dialogs/display-config.cpp
     dialogs/game-boy-config.cpp
     dialogs/game-maker.cpp
     dialogs/gb-rom-info.cpp
     dialogs/joypad-config.cpp
+    widgets/checked-list-ctrl.cpp
     widgets/group-check-box.cpp
     widgets/keep-on-top-styler.cpp
     widgets/option-validator.cpp
@@ -802,7 +806,6 @@ set(
     # probably ought to be in common
     ../sdl/text.cpp
     # from external source with minor modifications
-    widgets/checkedlistctrl.cpp
     ../common/version.cpp
 )
 
@@ -830,6 +833,7 @@ set(
     wxhead.h
     wayland.h
     wxutil.h
+    config/cheat-manager.h
     config/game-control.h
     config/internal/option-internal.h
     config/internal/shortcuts-internal.h
@@ -840,6 +844,8 @@ set(
     config/shortcuts.h
     config/user-input.h
     dialogs/accel-config.h
+    dialogs/cheat-edit.h
+    dialogs/cheat-list.h
     dialogs/directories-config.h
     dialogs/display-config.h
     dialogs/game-boy-config.h
@@ -847,6 +853,7 @@ set(
     dialogs/gb-rom-info.h
     dialogs/joypad-config.h
     dialogs/validated-child.h
+    widgets/checked-list-ctrl.h
     widgets/dpi-support.h
     widgets/group-check-box.h
     widgets/keep-on-top-styler.h
@@ -854,12 +861,10 @@ set(
     widgets/render-plugin.h
     widgets/user-input-ctrl.h
     widgets/wx/sdljoy.h
-    widgets/wx/webupdatedef.h
     widgets/wx/wxmisc.h
     # probably ought to be in common
     ../sdl/text.h
     # from external source with minor modifications
-    widgets/wx/checkedlistctrl.h
     ../common/version_cpp.h
     ../common/range.hpp
     ../common/contains.h

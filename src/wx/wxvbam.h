@@ -1,23 +1,27 @@
 #ifndef WX_WXVBAM_H
 #define WX_WXVBAM_H
 
+#include <cstdio>
+#include <ctime>
+#include <iostream>
 #include <list>
 #include <stdexcept>
 #include <typeinfo>
-#include <iostream>
-#include <stdio.h>
-#include <time.h>
+
+#include <wx/datetime.h>
 #include <wx/log.h>
 #include <wx/propdlg.h>
-#include <wx/datetime.h>
 
+#include "config/cheat-manager.h"
 #include "config/option-observer.h"
+#include "dialogs/cheat-list.h"
 #include "widgets/dpi-support.h"
 #include "widgets/keep-on-top-styler.h"
 #include "wx/sdljoy.h"
 #include "wx/wxmisc.h"
 #include "wxhead.h"
 
+#include "../common/system.h"
 #include "../gb/gb.h"
 #include "../gb/gbCheats.h"
 #include "../gb/gbGlobals.h"
@@ -35,8 +39,7 @@
 #include "wxutil.h"
 
 template <typename T>
-void CheckPointer(T pointer)
-{
+void CheckPointer(T pointer) {
     if (pointer == NULL) {
         std::string errormessage = "Pointer of type \"";
         errormessage += typeid(pointer).name();
@@ -47,27 +50,19 @@ void CheckPointer(T pointer)
 
 /// Helper functions to convert WX's crazy string types to std::string
 
-inline std::string ToString(wxCharBuffer aString)
-{
+inline std::string ToString(wxCharBuffer aString) {
     return std::string(aString);
 }
 
-inline std::string ToString(const wxChar* aString)
-{
+inline std::string ToString(const wxChar* aString) {
     return std::string(wxString(aString).mb_str(wxConvUTF8));
 }
 
 class MainFrame;
 
-class wxvbamApp : public wxApp {
+class wxvbamApp final : public wxApp, public dialogs::CheatList::Delegate {
 public:
-    wxvbamApp()
-        : wxApp()
-        , pending_fullscreen(false)
-        , frame(NULL)
-        , using_wayland(false)
-    {
-    }
+    wxvbamApp() : wxApp(), pending_fullscreen(false), frame(NULL), using_wayland(false) {}
     virtual bool OnInit();
     virtual int OnRun();
     virtual bool OnCmdLineHelp(wxCmdLineParser&);
@@ -126,12 +121,20 @@ public:
 
     virtual ~wxvbamApp();
 
+    // config::CheatManagerProvider implementation.
+    config::CheatManager* GetCheatManager() final { return &cheat_manager_; }
+
 protected:
     bool using_wayland;
     bool console_mode = false;
     int console_status = 0;
 
 private:
+    // VbamSystemProvider implementation.
+    VbamSystem GetSystem() final;
+
+    config::CheatManager cheat_manager_;
+
     wxPathList config_path;
     char* home = nullptr;
 
@@ -265,10 +268,7 @@ public:
     void ResetMenuAccelerators();
 
     // 2.8 has no HasFocus(), and FindFocus() doesn't work right
-    bool HasFocus() const
-    {
-        return focused;
-    }
+    bool HasFocus() const override { return focused; }
 
 #ifndef NO_LINK
     // Returns the link mode to set according to the options
@@ -493,9 +493,6 @@ public:
 
     // save to default location
     void SaveBattery();
-
-    // true if file at default location may not match memory
-    bool cheats_dirty;
 
     static const int GBWidth = 160, GBHeight = 144, SGBWidth = 256, SGBHeight = 224,
                      GBAWidth = 240, GBAHeight = 160;

@@ -497,25 +497,16 @@ void GameArea::LoadGame(const wxString& name)
     // even if loaded from state file: not smart enough yet to just
     // do a reset or load from state file when # rewinds == 0
     do_rewind = gopts.rewind_interval > 0;
-    // FIXME: backup battery file (useful if game name conflict)
-    cheats_dirty = (did_autoload && !coreOptions.skipSaveGameCheats) || (loaded == IMAGE_GB ? gbCheatNumber > 0 : cheatsNumber > 0);
+    wxGetApp().GetCheatManager()->Reset();
 
     if (OPTION(kPrefAutoSaveLoadCheatList) && (!did_autoload || coreOptions.skipSaveGameCheats)) {
         wxFileName cfn = loaded_game;
         // SetExt may strip something off by accident, so append to text instead
-        cfn.SetFullName(cfn.GetFullName() + wxT(".clt"));
-
+        cfn.SetFullName(cfn.GetFullName() + ".clt");
         if (cfn.IsFileReadable()) {
-            bool cld;
-
-            if (loaded == IMAGE_GB)
-                cld = gbCheatsLoadCheatList(UTF8(cfn.GetFullPath()));
-            else
-                cld = cheatsLoadCheatList(UTF8(cfn.GetFullPath()));
-
+            bool cld = wxGetApp().GetCheatManager()->LoadCheatList(UTF8(cfn.GetFullPath()));
             if (cld) {
                 systemScreenMessage(_("Loaded cheats"));
-                cheats_dirty = false;
             }
         }
     }
@@ -592,16 +583,13 @@ void GameArea::UnloadGame(bool destruct)
         return;
 
     // last opportunity to autosave cheats
-    if (OPTION(kPrefAutoSaveLoadCheatList) && cheats_dirty) {
+    if (OPTION(kPrefAutoSaveLoadCheatList)) {
         wxFileName cfn = loaded_game;
         // SetExt may strip something off by accident, so append to text instead
-        cfn.SetFullName(cfn.GetFullName() + wxT(".clt"));
+        cfn.SetFullName(cfn.GetFullName() + ".clt");
 
         if (loaded == IMAGE_GB) {
-            if (!gbCheatNumber)
-                wxRemoveFile(cfn.GetFullPath());
-            else
-                gbCheatsSaveCheatList(UTF8(cfn.GetFullPath()));
+            wxGetApp().GetCheatManager()->SaveCheatList(UTF8(cfn.GetFullPath()));
         } else {
             if (!cheatsNumber)
                 wxRemoveFile(cfn.GetFullPath());
@@ -632,7 +620,7 @@ void GameArea::UnloadGame(bool destruct)
 
     if (loaded == IMAGE_GB) {
         gbCleanUp();
-        gbCheatRemoveAll();
+        GB_CHEAT_MANAGER.resetCheats();
     } else if (loaded == IMAGE_GBA) {
         CPUCleanUp();
         cheatsDeleteAll(false);
@@ -665,7 +653,7 @@ void GameArea::UnloadGame(bool destruct)
     mf->enable_menus();
     mf->StartJoyPollTimer();
     mf->SetJoystick();
-    mf->ResetCheatSearch();
+    // mf->ResetCheatSearch();
 
     if (rewind_mem)
         num_rewind_states = 0;

@@ -1876,7 +1876,7 @@ int main(int argc, char** argv)
                 cheatsAddCBACode(p, p);
             } else if (l == 8) {
                 fprintf(stdout, "Adding GB(GS) cheat code %s\n", p);
-                gbAddGsCheat(p, p);
+                GB_CHEAT_MANAGER.addGameSharkCheat(p);
             } else {
                 fprintf(stderr, "Unknown format for cheat code %s\n", p);
             }

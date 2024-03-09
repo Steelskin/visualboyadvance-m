@@ -45,7 +45,6 @@
 #include "wayland.h"
 #include "widgets/group-check-box.h"
 #include "widgets/user-input-ctrl.h"
-#include "wxhead.h"
 
 #ifdef __WXGTK__
 #include <gdk/gdk.h>
@@ -1409,4 +1408,17 @@ int wxvbamApp::FilterEvent(wxEvent& event)
     if (frame)
         return frame->FilterEvent(event);
     return wxApp::FilterEvent(event);
+}
+
+VbamSystem wxvbamApp::GetSystem() {
+    switch (frame->GetPanel()->game_type()) {
+        case IMAGE_GBA:
+            return VbamSystem::GameBoyAdvance;
+        case IMAGE_GB:
+            return VbamSystem::GameBoy;
+        case IMAGE_UNKNOWN:
+        default:
+            assert(false);
+            return VbamSystem::GameBoy;
+    }
 }

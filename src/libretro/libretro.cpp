@@ -1515,8 +1515,9 @@ void retro_cheat_reset(void)
     coreOptions.cheatsEnabled = 1;
     if (type == IMAGE_GBA)
         cheatsDeleteAll(false);
-    else if (type == IMAGE_GB)
-        gbCheatRemoveAll();
+    else if (type == IMAGE_GB) {
+        GB_CHEAT_MANAGER.resetCheats();
+    }
 }
 
 #define ISHEXDEC \

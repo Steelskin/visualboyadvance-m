@@ -5,15 +5,14 @@
 // other non-viewer dialogs are at least validated enough that they won't crash
 // viewer dialogs are not commonly used, so they are initialized on demand
 
+#include "config/cheat-manager.h"
 #include "wxvbam.h"
 
 #include <cmath>
-#include <algorithm>
 #include <stdexcept>
 #include <typeinfo>
 
 #include <wx/checkbox.h>
-#include <wx/checkedlistctrl.h>
 #include <wx/choice.h>
 #include <wx/clrpicker.h>
 #include <wx/dialog.h>
@@ -34,11 +33,9 @@
 #include <wx/wfstream.h>
 
 #include "../gba/CheatSearch.h"
-#include "config/game-control.h"
 #include "config/option-proxy.h"
-#include "config/option.h"
-#include "config/user-input.h"
 #include "dialogs/accel-config.h"
+#include "dialogs/cheat-list.h"
 #include "dialogs/directories-config.h"
 #include "dialogs/display-config.h"
 #include "dialogs/game-boy-config.h"
@@ -46,7 +43,6 @@
 #include "dialogs/joypad-config.h"
 #include "opts.h"
 #include "widgets/option-validator.h"
-#include "widgets/user-input-ctrl.h"
 #include "wxhead.h"
 
 #if defined(__WXGTK__)
@@ -205,591 +201,6 @@ public:
 } net_link_handler;
 #endif
 
-// manage the cheat list dialog
-static class CheatList_t : public wxEvtHandler {
-public:
-    wxDialog* dlg;
-    wxCheckedListCtrl* list;
-    wxListItem item0, item1;
-    int col1minw;
-    wxString cheatdir, cheatfn, deffn;
-    bool isgb;
-    bool* dirty;
-
-    // add/edit dialog
-    wxString ce_desc;
-    wxString ce_codes;
-    wxChoice* ce_type_ch;
-    wxControl* ce_codes_tc;
-    int ce_type;
-
-    void Reload()
-    {
-        list->DeleteAllItems();
-        Reload(0);
-    }
-
-    void Reload(int start)
-    {
-        if (isgb) {
-            for (int i = start; i < gbCheatNumber; i++) {
-                item0.SetId(i);
-                item0.SetText(wxString(gbCheatList[i].cheatCode, wxConvLibc));
-                list->InsertItem(item0);
-                item1.SetId(i);
-                item1.SetText(wxString(gbCheatList[i].cheatDesc, wxConvUTF8));
-                list->SetItem(item1);
-                list->Check(i, gbCheatList[i].enabled);
-            }
-        } else {
-            for (int i = start; i < cheatsNumber; i++) {
-                item0.SetId(i);
-                item0.SetText(wxString(cheatsList[i].codestring, wxConvLibc));
-                list->InsertItem(item0);
-                item1.SetId(i);
-                item1.SetText(wxString(cheatsList[i].desc, wxConvUTF8));
-                list->SetItem(item1);
-                list->Check(i, cheatsList[i].enabled);
-            }
-        }
-
-        AdjustDescWidth();
-    }
-
-    void Tool(wxCommandEvent& ev)
-    {
-        switch (ev.GetId()) {
-        case wxID_OPEN: {
-            wxFileDialog subdlg(dlg, _("Select cheat file"), cheatdir, cheatfn,
-                _("VBA cheat lists (*.clt)|*.clt|CHT cheat lists (*.cht)|*.cht"),
-                wxFD_OPEN | wxFD_FILE_MUST_EXIST);
-            int ret = subdlg.ShowModal();
-            cheatdir = subdlg.GetDirectory();
-            cheatfn = subdlg.GetPath();
-
-            if (ret != wxID_OK)
-                break;
-
-            bool cld;
-
-            if (isgb)
-                cld = gbCheatsLoadCheatList(UTF8(cheatfn));
-            else {
-                if (cheatfn.EndsWith(wxT(".clt"))) {
-                    cld = cheatsLoadCheatList(UTF8(cheatfn));
-
-                    if (cld) {
-                        *dirty = cheatfn != deffn;
-                        systemScreenMessage(_("Loaded cheats"));
-                    } else
-                        *dirty = true; // attempted load always clears
-                } else {
-                    // cht format
-                    wxFileInputStream input(cheatfn);
-                    wxTextInputStream text(input, wxT("\x09"), wxConvUTF8);
-                    wxString cheat_desc = wxT("");
-
-                    while (input.IsOk() && !input.Eof()) {
-                        wxString line = text.ReadLine().Trim();
-
-                        if (line.Contains(wxT("[")) && !line.Contains(wxT("="))) {
-                            cheat_desc = line.AfterFirst('[').BeforeLast(']');
-                        }
-
-                        if (line.Contains(wxT("=")) && cheat_desc != wxT("GameInfo")) {
-                            while ((input.IsOk() && !input.Eof()) && (line.EndsWith(wxT(";")) || line.EndsWith(wxT(",")))) {
-                                line = line + text.ReadLine().Trim();
-                            }
-
-                            ParseChtLine(cheat_desc, line);
-                        }
-                    }
-
-                    *dirty = true;
-                }
-            }
-
-            Reload();
-        } break;
-
-        case wxID_SAVE: {
-            wxFileDialog subdlg(dlg, _("Select cheat file"), cheatdir,
-                cheatfn, _("VBA cheat lists (*.clt)|*.clt"),
-                wxFD_SAVE | wxFD_OVERWRITE_PROMPT);
-            int ret = subdlg.ShowModal();
-            cheatdir = subdlg.GetDirectory();
-            cheatfn = subdlg.GetPath();
-
-            if (ret != wxID_OK)
-                break;
-
-            // note that there is no way to test for succes of save
-            if (isgb)
-                gbCheatsSaveCheatList(UTF8(cheatfn));
-            else
-                cheatsSaveCheatList(UTF8(cheatfn));
-
-            if (cheatfn == deffn)
-                *dirty = false;
-
-            systemScreenMessage(_("Saved cheats"));
-        } break;
-
-        case wxID_ADD: {
-            int ncheats = isgb ? gbCheatNumber : cheatsNumber;
-            ce_codes = wxEmptyString;
-            wxDialog* subdlg = GetXRCDialog("CheatEdit");
-            dlg->SetWindowStyle(wxCAPTION | wxRESIZE_BORDER);
-
-            if (OPTION(kDispKeepOnTop))
-                subdlg->SetWindowStyle(subdlg->GetWindowStyle() | wxSTAY_ON_TOP);
-            else
-                subdlg->SetWindowStyle(subdlg->GetWindowStyle() & ~wxSTAY_ON_TOP);
-
-            subdlg->ShowModal();
-            AddCheat();
-            Reload(ncheats);
-        } break;
-
-        case wxID_REMOVE: {
-            bool asked = false, restore = false;
-
-            for (int i = list->GetItemCount() - 1; i >= 0; i--)
-                if (list->GetItemState(i, wxLIST_STATE_SELECTED)) {
-                    list->DeleteItem(i);
-
-                    if (isgb)
-                        gbCheatRemove(i);
-                    else {
-                        if (!asked) {
-                            asked = true;
-                            restore = wxMessageBox(_("Restore old values?"),
-                                          _("Removing cheats"),
-                                          wxYES_NO | wxICON_QUESTION)
-                                == wxYES;
-                        }
-
-                        cheatsDelete(i, restore);
-                    }
-                }
-        } break;
-
-        case wxID_CLEAR:
-            if (isgb) {
-                if (gbCheatNumber) {
-                    *dirty = true;
-                    gbCheatRemoveAll();
-                }
-            } else {
-                if (cheatsNumber) {
-                    bool restore = wxMessageBox(_("Restore old values?"),
-                                       _("Removing cheats"),
-                                       wxYES_NO | wxICON_QUESTION)
-                        == wxYES;
-                    *dirty = true;
-                    cheatsDeleteAll(restore);
-                }
-            }
-
-            Reload();
-            break;
-
-        case wxID_SELECTALL:
-            // FIXME: probably ought to limit to selected items if any items
-            // are selected
-            *dirty = true;
-
-            if (isgb) {
-                int i;
-
-                for (i = 0; i < gbCheatNumber; i++)
-                    if (!gbCheatList[i].enabled)
-                        break;
-
-                if (i < gbCheatNumber)
-                    for (; i < gbCheatNumber; i++) {
-                        gbCheatEnable(i);
-                        list->Check(i, true);
-                    }
-                else
-                    for (i = 0; i < gbCheatNumber; i++) {
-                        gbCheatDisable(i);
-                        list->Check(i, false);
-                    }
-            } else {
-                int i;
-
-                for (i = 0; i < cheatsNumber; i++)
-                    if (!cheatsList[i].enabled)
-                        break;
-
-                if (i < cheatsNumber)
-                    for (; i < cheatsNumber; i++) {
-                        cheatsEnable(i);
-                        list->Check(i, true);
-                    }
-                else
-                    for (i = 0; i < cheatsNumber; i++) {
-                        cheatsDisable(i);
-                        list->Check(i, false);
-                    }
-            }
-
-            break;
-        }
-    }
-
-    void Check(wxListEvent& ev)
-    {
-        int ch = ev.GetIndex();
-
-        if (isgb) {
-            if (!gbCheatList[ch].enabled) {
-                gbCheatEnable(ev.GetIndex());
-                *dirty = true;
-            }
-        } else {
-            if (!cheatsList[ch].enabled) {
-                cheatsEnable(ev.GetIndex());
-                *dirty = true;
-            }
-        }
-    }
-
-    void UnCheck(wxListEvent& ev)
-    {
-        int ch = ev.GetIndex();
-
-        if (isgb) {
-            if (gbCheatList[ch].enabled) {
-                gbCheatDisable(ev.GetIndex());
-                *dirty = true;
-            }
-        } else {
-            if (cheatsList[ch].enabled) {
-                cheatsDisable(ev.GetIndex());
-                *dirty = true;
-            }
-        }
-    }
-
-    void AddCheat()
-    {
-        wxStringTokenizer tk(ce_codes.MakeUpper());
-
-        while (tk.HasMoreTokens()) {
-            wxString tok = tk.GetNextToken();
-
-            if (isgb) {
-                if (!ce_type)
-                    gbAddGsCheat(tok.utf8_str(), ce_desc.utf8_str());
-                else
-                    gbAddGgCheat(tok.utf8_str(), ce_desc.utf8_str());
-            } else {
-                // Flashcart CHT format
-                if (tok.Contains(wxT("="))) {
-                    ParseChtLine(ce_desc, tok);
-                }
-                // Generic Code
-                else if (tok.Contains(wxT(":")))
-                    cheatsAddCheatCode(tok.utf8_str(), ce_desc.utf8_str());
-                // following determination of type by lengths is
-                // same used by win32 and gtk code
-                // and like win32/gtk code, user-chosen fmt is ignored
-                else if (tok.size() == 12) {
-                    tok = tok.substr(0, 8) + wxT(' ') + tok.substr(8);
-                    cheatsAddCBACode(tok.utf8_str(), ce_desc.utf8_str());
-                } else if (tok.size() == 16)
-                    // not sure why 1-tok is !v3 and 2-tok is v3..
-                    cheatsAddGSACode(tok.utf8_str(), ce_desc.utf8_str(), false);
-                // CBA codes are assumed to be N+4, and anything else
-                // is assumed to be GSA v3 (although I assume the
-                // actual formats should be 8+4 and 8+8)
-                else {
-                    if (!tk.HasMoreTokens()) {
-                        // throw an error appropriate to chosen type
-                        if (ce_type == 1) // GSA
-                            cheatsAddGSACode(tok.utf8_str(), ce_desc.utf8_str(), false);
-                        else
-                            cheatsAddCBACode(tok.utf8_str(), ce_desc.utf8_str());
-                    } else {
-                        wxString tok2 = tk.GetNextToken();
-
-                        if (tok2.size() == 4) {
-                            tok += wxT(' ') + tok2;
-                            cheatsAddCBACode(tok.utf8_str(), ce_desc.utf8_str());
-                        } else {
-                            tok += tok2;
-                            cheatsAddGSACode(tok.utf8_str(), ce_desc.utf8_str(), true);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    void ParseChtLine(wxString desc, wxString tok);
-
-    void Edit(wxListEvent& ev)
-    {
-        int id = ev.GetIndex();
-        // GetItem() followed by GetText doesn't work, so retrieve from
-        // source
-        wxString odesc, ocode;
-        bool ochecked;
-        int otype;
-
-        if (isgb) {
-            ochecked = gbCheatList[id].enabled;
-            ce_codes = ocode = wxString(gbCheatList[id].cheatCode, wxConvLibc);
-            ce_desc = odesc = wxString(gbCheatList[id].cheatDesc, wxConvUTF8);
-
-            if (ce_codes.find(wxT('-')) == wxString::npos)
-                otype = ce_type = 0;
-            else
-                otype = ce_type = 1;
-        } else {
-            ochecked = cheatsList[id].enabled;
-            ce_codes = ocode = wxString(cheatsList[id].codestring, wxConvLibc);
-            ce_desc = odesc = wxString(cheatsList[id].desc, wxConvUTF8);
-
-            if (ce_codes.find(wxT(':')) != wxString::npos)
-                otype = ce_type = 0;
-            else if (ce_codes.find(wxT(' ')) == wxString::npos)
-                otype = ce_type = 1;
-            else
-                otype = ce_type = 2;
-        }
-
-        wxDialog* subdlg = GetXRCDialog("CheatEdit");
-        dlg->SetWindowStyle(wxCAPTION | wxRESIZE_BORDER);
-
-        if (OPTION(kDispKeepOnTop))
-            subdlg->SetWindowStyle(subdlg->GetWindowStyle() | wxSTAY_ON_TOP);
-        else
-            subdlg->SetWindowStyle(subdlg->GetWindowStyle() & ~wxSTAY_ON_TOP);
-
-        if (subdlg->ShowModal() != wxID_OK)
-            return;
-
-        if (otype != ce_type || ocode != ce_codes) {
-            // vba core certainly doesn't make this easy
-            // there is no "change" function, so the only way to retain
-            // the old order is to delete this and all subsequent items, and
-            // then re-add them
-            // The MFC code got around this by not even supporting edits on
-            // gba codes (which have order dependencies) and just forcing
-            // edited codes to the rear on gb codes.
-            // It might be safest to only support desc edits, and force the
-            // user to re-enter codes to change them
-            int ncodes = isgb ? gbCheatNumber : cheatsNumber;
-
-            if (ncodes > id + 1) {
-                wxString codes[MAX_CHEATS];
-                wxString descs[MAX_CHEATS];
-                bool checked[MAX_CHEATS];
-                bool v3[MAX_CHEATS];
-
-                for (int i = id + 1; i < ncodes; i++) {
-                    codes[i - id - 1] = wxString(isgb ? gbCheatList[i].cheatCode : cheatsList[i].codestring,
-                        wxConvLibc);
-                    descs[i - id - 1] = wxString(isgb ? gbCheatList[i].cheatDesc : cheatsList[i].desc,
-                        wxConvUTF8);
-                    checked[i - id - 1] = isgb ? gbCheatList[i].enabled : cheatsList[i].enabled;
-                    v3[i - id - 1] = isgb ? false : cheatsList[i].code == 257;
-                }
-
-                for (int i = ncodes - 1; i >= id; i--) {
-                    list->DeleteItem(i);
-
-                    if (isgb)
-                        gbCheatRemove(i);
-                    else
-                        cheatsDelete(i, cheatsList[i].enabled);
-                }
-
-                AddCheat();
-
-                if (!ochecked) {
-                    if (isgb)
-                        gbCheatDisable(id);
-                    else
-                        cheatsDisable(id);
-                }
-
-                for (int i = id + 1; i < ncodes; i++) {
-                    ce_codes = codes[i - id - 1];
-                    ce_desc = descs[i - id - 1];
-
-                    if (isgb) {
-                        if (ce_codes.find(wxT('-')) == wxString::npos)
-                            ce_type = 0;
-                        else
-                            ce_type = 1;
-                    } else {
-                        if (ce_codes.find(wxT(':')) != wxString::npos)
-                            ce_type = 0;
-                        else if (ce_codes.find(wxT(' ')) == wxString::npos) {
-                            ce_type = 1;
-
-                            if (v3[i - id - 1])
-                                ce_codes.insert(8, 1, wxT(' '));
-                        } else {
-                            ce_type = 2;
-                        }
-                    }
-
-                    AddCheat();
-
-                    if (!checked[i - id - 1]) {
-                        if (isgb)
-                            gbCheatDisable(i);
-                        else
-                            cheatsDisable(i);
-                    }
-                }
-            } else {
-                list->DeleteItem(id);
-
-                if (isgb)
-                    gbCheatRemove(id);
-                else
-                    cheatsDelete(id, cheatsList[id].enabled);
-
-                AddCheat();
-
-                if (!ochecked) {
-                    if (isgb)
-                        gbCheatDisable(id);
-                    else
-                        cheatsDisable(id);
-                }
-            }
-
-            Reload(id);
-        } else if (ce_desc != odesc) {
-            *dirty = true;
-            char* p = isgb ? gbCheatList[id].cheatDesc : cheatsList[id].desc;
-            strncpy(p, ce_desc.utf8_str(), sizeof(cheatsList[0].desc));
-            p[sizeof(cheatsList[0].desc) - 1] = 0;
-            item1.SetId(id);
-            item1.SetText(wxString(p, wxConvUTF8));
-            list->SetItem(item1);
-        }
-    }
-
-    void AdjustDescWidth()
-    {
-        // why is it so hard to get an accurate measurement out of wx?
-        // on msw, wxLIST_AUTOSIZE might actually be accurate.  On wxGTK,
-        // and probably wxMAC (both of which use generic impl) wrong
-        // font is used both for rendering (col 0's font) and for
-        // wxLIST_AUTOSIZE calculation (the widget's font).
-        // The only way to defeat this is to calculate size manually
-        // Instead, this just allows user to set max size, and retains
-        // it.
-        int ow = list->GetColumnWidth(1);
-        list->SetColumnWidth(1, wxLIST_AUTOSIZE);
-        int cw = list->GetColumnWidth(1);
-        // subtracted in renderer from width avail for text
-        // but not added in wxLIST_AUTOSIZE
-        cw += 8;
-
-        if (cw < col1minw)
-            cw = col1minw;
-
-        if (cw < ow)
-            cw = ow;
-
-        list->SetColumnWidth(1, cw);
-    }
-} cheat_list_handler;
-
-void CheatList_t::ParseChtLine(wxString desc, wxString tok)
-{
-    wxString cheat_opt = tok.BeforeFirst(wxT('='));
-    wxString cheat_set = tok.AfterFirst(wxT('='));
-    wxStringTokenizer addr_tk(cheat_set.MakeUpper(), wxT(";"));
-
-    while (addr_tk.HasMoreTokens()) {
-        wxString addr_token = addr_tk.GetNextToken();
-        wxString cheat_addr = addr_token.BeforeFirst(wxT(','));
-        wxString values = addr_token.AfterFirst(wxT(','));
-        wxString cheat_desc = desc + wxT(":") + cheat_opt;
-        wxString cheat_line;
-        wxString cheat_value;
-        uint32_t address = 0;
-        uint32_t value = 0;
-        sscanf(cheat_addr.utf8_str(), "%8x", &address);
-
-        if (address < 0x40000)
-            address += 0x2000000;
-        else
-            address += 0x3000000 - 0x40000;
-
-        wxStringTokenizer value_tk(values.MakeUpper(), wxT(","));
-
-        while (value_tk.HasMoreTokens()) {
-            wxString value_token = value_tk.GetNextToken();
-            sscanf(value_token.utf8_str(), "%2x", &value);
-            cheat_line.Printf(wxT("%08X"), address);
-            cheat_value.Printf(wxT("%02X"), value);
-            cheat_line = cheat_line + wxT(":") + cheat_value;
-            cheatsAddCheatCode(cheat_line.utf8_str(), cheat_desc.utf8_str());
-            address++;
-        }
-    }
-}
-
-// onshow handler for above, in the form of an overzealous validator
-class CheatListFill : public wxValidator {
-public:
-    CheatListFill()
-        : wxValidator()
-    {
-    }
-    CheatListFill(const CheatListFill& e)
-        : wxValidator()
-    {
-        (void)e; // unused params
-    }
-    wxObject* Clone() const { return new CheatListFill(*this); }
-    bool TransferFromWindow() { return true; }
-    bool Validate(wxWindow* p) {
-        (void)p; // unused params
-        return true;
-    }
-    bool TransferToWindow()
-    {
-        CheatList_t& clh = cheat_list_handler;
-        GameArea* panel = wxGetApp().frame->GetPanel();
-        clh.isgb = panel->game_type() == IMAGE_GB;
-        clh.dirty = &panel->cheats_dirty;
-        clh.cheatfn = panel->game_name() + wxT(".clt");
-        clh.cheatdir = panel->game_dir();
-        clh.deffn = wxFileName(clh.cheatdir, clh.cheatfn).GetFullPath();
-        clh.Reload();
-        clh.ce_desc = wxEmptyString;
-        wxChoice* ch = clh.ce_type_ch;
-        ch->Clear();
-
-        if (clh.isgb) {
-            // DO NOT TRANSLATE
-            ch->Append("Game Shark");
-            ch->Append("Game Genie");
-        } else {
-            ch->Append(_("Generic Code"));
-            // DO NOT TRANSLATE
-            ch->Append("Game Shark Advance");
-            ch->Append("Code Breaker Advance");
-            ch->Append("Flashcart CHT");
-        }
-
-        ch->SetSelection(0);
-        return true;
-    }
-};
-
 // manage the cheat search dialog
 enum cf_vfmt {
     CFVFMT_SD,
@@ -829,6 +240,8 @@ public:
     wxString ca_desc, ca_val;
     wxTextCtrl* ca_val_tc;
     wxControl *ca_fmt, *ca_addr;
+
+    config::CheatManagerProvider* delegate_;
 
     CheatFind_t()
         : wxEvtHandler()
@@ -881,20 +294,19 @@ public:
                     if (!(j & 3))
                         list->count32++;
 
-// since listctrl is virtual, it should be able to handle
-// at least 256k results, which is about the most you
-// will ever get
-/*
+                    // since listctrl is virtual, it should be able to handle
+                    // at least 256k results, which is about the most you
+                    // will ever get
+                    /*
 
-                                        if (list->addrs.size() > 1000)
-                                        {
-                                                wxLogError(_("Search produced %d results.  Please refine better"),
-                                                           list->addrs.size());
-                                                list->addrs.clear();
-                                                return;
-                                        }
+                    if (list->addrs.size() > 1000)
+                    {
+                            wxLogError(_("Search produced %d results.  Please refine better"),
+                                list->addrs.size()); list->addrs.clear();
+                            return;
+                    }
 
-*/
+                    */
                 }
             }
         }
@@ -1125,13 +537,15 @@ public:
             for (int i = 0; i < (1 << size); i++) {
                 addr_s.Printf(wxT("%02X%02X%02X%02X"), bank, val & 0xff,
                     addr & 0xff, addr >> 8);
-                gbAddGsCheat(addr_s.utf8_str(), ca_desc.utf8_str());
+                delegate_->GetCheatManager()->AddCheat(
+                    config::Cheat{config::CheatType(gbCheatType::GameShark),
+                                  ca_desc.ToStdString(),
+                                  {addr_s.ToStdString()},
+                                  true});
                 val >>= 8;
                 addr++;
             }
         } else {
-            wxString s;
-
             switch (size) {
             case BITS_8:
                 s.Printf(wxT(":%02X"), val);
@@ -1939,6 +1353,8 @@ bool MainFrame::BindControls()
         return false;
     }
 
+    panel->SetDelegate(&wxGetApp());
+
     panel->SetMainFrame(this);
 
     panel->AdjustSize(false);
@@ -2367,96 +1783,11 @@ bool MainFrame::BindControls()
             d->Fit();
         }
 #endif
-        d = LoadXRCDialog("CheatList");
-        {
-            cheat_list_handler.dlg = d;
-            d->SetEscapeId(wxID_OK);
-            wxCheckedListCtrl* cl;
-            cl = SafeXRCCTRL<wxCheckedListCtrl>(d, "Cheats");
-
-            if (!cl->Init())
-                throw std::runtime_error("Unable to initialize the Cheats dialog control from the builtin xrc file!");
-
-            cheat_list_handler.list = cl;
-            cl->SetValidator(CheatListFill());
-            cl->InsertColumn(0, _("Code"));
-            // can't just set font for whole column; must set in each
-            // individual item
-            wxFont of = cl->GetFont();
-            // of.SetFamily(wxFONTFAMILY_MODERN);  // doesn't work (no font change)
-            wxFont f(of.GetPointSize(), wxFONTFAMILY_MODERN, of.GetStyle(),
-                of.GetWeight());
-            cheat_list_handler.item0.SetFont(f);
-            cheat_list_handler.item0.SetColumn(0);
-            cl->InsertColumn(1, _("Description"));
-            // too bad I can't just set the size to windowwidth - other cols
-            // default width is header width, but using following will probably
-            // make it 80 pixels wide regardless
-            // cl->SetColumnWidth(1, wxLIST_AUTOSIZE_USEHEADER);
-            cheat_list_handler.col1minw = cl->GetColumnWidth(1);
-            // on wxGTK, column 1 seems to inherit column 0's font regardless
-            // of requested font
-            cheat_list_handler.item1.SetFont(cl->GetFont());
-            cheat_list_handler.item1.SetColumn(1);
-#if 0
-                        // the ideal way to set col 0's width would be to use
-                        // wxLIST_AUTOSIZE after setting value to a sample:
-                        cheat_list_handler.item0.SetText(wxT("00000000 00000000"));
-                        cl->InsertItem(cheat_list_handler.item0);
-                        cl->SetColumnWidth(0, wxLIST_AUTOSIZE);
-                        cl->RemoveItem(0);
-#else
-            // however, the generic listctrl implementation uses the wrong
-            // font to determine width (window vs. item), and does not
-            // calculate the margins the same way in calculation vs. actual
-            // drawing.  so calculate manually, using knowledge of underlying
-            // code.  This is highly version-unportable, but better than using
-            // buggy wx code..
-            int w, h;
-            cl->GetImageList(wxIMAGE_LIST_SMALL)->GetSize(0, w, h);
-            w += 5; // IMAGE_MARGIN_IN_REPORT_MODE
-            // following is missing from wxLIST_AUTOSIZE
-            w += 8; // ??? subtracted from width avail for text
-            {
-                int charwidth, charheight;
-                wxClientDC dc(cl);
-                // following is item font instead of window font,
-                // and so is missing from wxLIST_AUTOSIZE
-                dc.SetFont(f);
-                dc.GetTextExtent(wxT('M'), &charwidth, &charheight);
-                w += (8 + 1 + 8) * charwidth;
-            }
-            cl->SetColumnWidth(0, w);
-#endif
-            d->Connect(wxEVT_COMMAND_TOOL_CLICKED,
-                wxCommandEventHandler(CheatList_t::Tool),
-                NULL, &cheat_list_handler);
-            d->Connect(wxEVT_COMMAND_LIST_ITEM_CHECKED,
-                wxListEventHandler(CheatList_t::Check),
-                NULL, &cheat_list_handler);
-            d->Connect(wxEVT_COMMAND_LIST_ITEM_UNCHECKED,
-                wxListEventHandler(CheatList_t::UnCheck),
-                NULL, &cheat_list_handler);
-            d->Connect(wxEVT_COMMAND_LIST_ITEM_ACTIVATED,
-                wxListEventHandler(CheatList_t::Edit),
-                NULL, &cheat_list_handler);
-            d->Fit();
-        }
-        d = LoadXRCDialog("CheatEdit");
-        wxChoice* ch;
-        {
-            // d->Reparent(cheat_list_handler.dlg); // broken
-            ch = GetValidatedChild<wxChoice, wxGenericValidator>(d, "Type", wxGenericValidator(&cheat_list_handler.ce_type));
-            cheat_list_handler.ce_type_ch = ch;
-            gettc("Desc", cheat_list_handler.ce_desc);
-            tc->SetMaxLength(sizeof(cheatsList[0].desc) - 1);
-            gettc("Codes", cheat_list_handler.ce_codes);
-            cheat_list_handler.ce_codes_tc = tc;
-            d->Fit();
-        }
+        dialogs::CheatList::NewInstance(this, &wxGetApp());
         d = LoadXRCDialog("CheatCreate");
         {
             cheat_find_handler.dlg = d;
+            cheat_find_handler.delegate_ = &wxGetApp();
             d->SetEscapeId(wxID_OK);
             CheatListCtrl* list;
             list = SafeXRCCTRL<CheatListCtrl>(d, "CheatList");
@@ -2631,6 +1962,7 @@ bool MainFrame::BindControls()
         fp->SetValidator(wxFileDirPickerValidator(&o, l)); \
     } while (0)
         dialogs::GameBoyConfig::NewInstance(this);
+        wxChoice* ch;
         d = LoadXRCropertySheetDialog("GameBoyAdvanceConfig");
         {
             /// System and peripherals
