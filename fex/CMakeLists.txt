@@ -32,11 +32,6 @@ SET(SRC_FEX
     fex/Zlib_Inflater.cpp
 )
 
-INCLUDE_DIRECTORIES(
-    .
-    ${ZLIB_INCLUDE_DIRS}
-)
-
 ADD_LIBRARY(
     fex
     STATIC
@@ -44,3 +39,6 @@ ADD_LIBRARY(
 )
 
 add_dependencies(fex generate)
+
+target_include_directories(fex PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(fex PUBLIC ZLIB::ZLIB)
